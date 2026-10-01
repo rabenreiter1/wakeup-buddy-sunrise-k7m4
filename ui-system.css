@@ -138,10 +138,10 @@ html:has(#appearance-dialog[open]),body:has(#appearance-dialog[open]){overflow:h
 .ritual-remove{position:absolute;z-index:2;top:-9px;left:-9px;width:30px;height:30px;display:grid;place-items:center;padding:0;border:2px solid var(--surface-page);border-radius:50%;color:var(--text-primary);background:var(--border-subtle)}
 .ritual-remove::before{content:'';position:absolute;inset:-7px}.ritual-remove svg{width:16px;height:16px}
 .playlist-open{-webkit-touch-callout:none;user-select:none}.playlist-open img{pointer-events:none}
-.playlist-card.is-managing .playlist-open{animation:ritual-wiggle .28s ease-in-out infinite alternate;transform-origin:50% 45%}
-.playlist-card.is-managing:nth-child(2n) .playlist-open{animation-delay:-.17s;animation-direction:alternate-reverse}
-.playlist-card.is-managing:nth-child(3n) .playlist-open{animation-duration:.32s;animation-delay:-.08s}
-@keyframes ritual-wiggle{from{transform:rotate(-.7deg)}to{transform:rotate(.7deg)}}
+.playlist-card.is-managing .playlist-open{animation:ritual-wiggle .15s ease-in-out infinite alternate;transform-origin:50% 32%}
+.playlist-card.is-managing:nth-child(2n) .playlist-open{animation-delay:-.09s;animation-direction:alternate-reverse}
+.playlist-card.is-managing:nth-child(3n) .playlist-open{animation-duration:.17s;animation-delay:-.04s}
+@keyframes ritual-wiggle{from{transform:translate(-.35px,.3px) rotate(-1.5deg)}to{transform:translate(.35px,-.3px) rotate(1.5deg)}}
 /* Real scroll positions with native momentum and snap, shared by both planning modes. */
 .time-wheel{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:220px;margin:4px 0 12px;isolation:isolate;font-variant-numeric:tabular-nums;gap:6px}
 .time-wheel-highlight{position:absolute;inset:88px 8px;border-radius:14px;background:var(--surface-input);z-index:-1;pointer-events:none}
@@ -193,7 +193,28 @@ html .swipe-delete{border-radius:14px}
 .sorting .step{transition:transform .16s ease;will-change:transform}
 .sorting .drag-source{opacity:0}
 .drag-ghost.lifted-row{position:fixed;z-index:100;box-sizing:border-box;margin:0;padding:0;background:var(--surface-page);color:var(--text-primary);border:0;border-radius:14px;white-space:normal;box-shadow:0 12px 32px #0002;overflow:hidden;transform:none}
-.drag-ghost.ritual-track{display:flex;align-items:center;gap:10px;min-height:80px;padding:10px 0}
+.drag-ghost.ritual-track{display:block;min-height:80px;padding:0}
 .drag-ghost.ritual-track .drag-handle{display:grid;min-width:28px;color:var(--text-secondary);opacity:.65}
 .drag-ghost.lifted-row .step-head{opacity:1}
 @media(prefers-reduced-motion:reduce){.sorting .step{transition:none}}
+
+/* Shared touch controls: identical metrics regardless of their parent screen. */
+html .discover-toolbar .tag-filter{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;margin:0;padding:8px 0 8px 8px;min-height:44px;font-family:inherit;font-size:12px;font-weight:400;line-height:1.2;color:var(--text-secondary);white-space:nowrap}
+html .discover-toolbar .tag-filter svg{width:16px;height:16px;flex:0 0 16px;stroke-width:1.8}
+html :is(button,.playlist-grid,.discover-toolbar,.library-toolbar,.drag-ghost,.time-wheel,.sheet-grip){-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html :is(input,textarea,[contenteditable=true]){-webkit-user-select:text;user-select:text}
+html dialog.bottom-sheet{box-sizing:border-box;overflow-x:hidden;overscroll-behavior:none;touch-action:pan-y;max-width:100%;min-width:0}
+html dialog.bottom-sheet :is(form,fieldset,.dialog-head){min-width:0;max-width:100%}
+body .fixed-nav{top:var(--page-lock-top,0px)}
+html dialog :is(input:not([type=checkbox]):not([type=radio]),textarea,select){font-size:16px;min-width:0;max-width:100%;box-sizing:border-box}
+.schedule-date-control{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--border-subtle);border-radius:14px;background:var(--surface-input);color:var(--text-primary);font-size:16px;line-height:24px}
+.schedule-date-control>svg{width:20px;height:20px;flex:none}.schedule-date-control>svg:last-of-type{width:16px;height:16px;margin-left:auto}
+.schedule-date-control:focus-within{outline:2px solid #ffb100;outline-offset:2px}
+html #product-modal .schedule-date-control input{position:absolute;inset:0;width:100%;height:100%;min-width:0;max-width:100%;opacity:0;margin:0;padding:0;border:0;cursor:pointer}
+html .ritual-track-list .ritual-track,html .drag-ghost.ritual-track{display:block;padding:0;border-radius:14px;border:0!important;min-height:0}
+.ritual-track-content{display:flex;align-items:center;gap:8px;min-height:84px;padding:14px 12px;box-sizing:border-box;width:100%;border-bottom:1px solid var(--border-subtle)}
+html .ritual-track .drag-handle{margin:0;min-width:24px;width:24px;flex:0 0 24px;padding:4px}
+.ritual-track .track-duration{padding-left:4px}.ritual-track .track-open{gap:10px}
+html .drag-ghost.ritual-track{border:0!important;overflow:hidden;background:var(--surface-page)}
+.drag-ghost .swipe-delete{display:none}.drag-ghost .swipe-content{transform:none!important}
+html .drag-ghost .ritual-track-content{height:100%;border:0}
