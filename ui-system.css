@@ -58,9 +58,9 @@ html .buddy-setting{padding:14px 0 18px;gap:16px}
 #appearance-dialog .look-preview>.visual-symbol{width:56px;height:56px;flex:none}
 #appearance-dialog>.primary{margin-top:20px}
 /* Keep the date cells mounted; animate the viewport, never each cell's dimensions. */
-.calendar-window{height:56px;overflow:clip;overflow-anchor:none;transition:height .42s cubic-bezier(.22,1,.36,1)}
-.calendar-window.expanded{height:376px}
-.calendar-window .month-grid,.calendar-window .month-grid.expanded,.calendar-window .month-grid.compact{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:56px;gap:8px 4px;animation:none;padding:0;margin:0;transform:translateY(calc(var(--selected-week) * -64px));transition:transform .42s cubic-bezier(.22,1,.36,1);overflow:visible}
+.calendar-window{--calendar-height:56px;height:var(--calendar-height);overflow:hidden;overflow-anchor:none;transition:height .32s cubic-bezier(.22,1,.36,1)}
+.calendar-window.expanded{--calendar-height:376px;height:var(--calendar-height)}
+.calendar-window .month-grid,.calendar-window .month-grid.expanded,.calendar-window .month-grid.compact{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:56px;gap:8px 4px;animation:none;padding:0;margin:0;transform:none;transition:none;overflow:visible}
 .calendar-window.expanded .month-grid{transform:translateY(0)}
 .calendar-window .month-day,.calendar-window .month-grid.compact .month-day{height:56px;min-height:56px;box-sizing:border-box;transition:background-color .16s ease,border-color .16s ease;animation:none}
 .calendar-weekdays{gap:4px}
@@ -138,7 +138,10 @@ html:has(#appearance-dialog[open]),body:has(#appearance-dialog[open]){overflow:h
 .ritual-remove{position:absolute;z-index:2;top:-9px;left:-9px;width:30px;height:30px;display:grid;place-items:center;padding:0;border:2px solid var(--surface-page);border-radius:50%;color:var(--text-primary);background:var(--border-subtle)}
 .ritual-remove::before{content:'';position:absolute;inset:-7px}.ritual-remove svg{width:16px;height:16px}
 .playlist-open{-webkit-touch-callout:none;user-select:none}.playlist-open img{pointer-events:none}
-.playlist-card.is-managing{animation:manage-arrive .18s ease-out}@keyframes manage-arrive{from{transform:scale(.98)}to{transform:none}}
+.playlist-card.is-managing .playlist-open{animation:ritual-wiggle .28s ease-in-out infinite alternate;transform-origin:50% 45%}
+.playlist-card.is-managing:nth-child(2n) .playlist-open{animation-delay:-.17s;animation-direction:alternate-reverse}
+.playlist-card.is-managing:nth-child(3n) .playlist-open{animation-duration:.32s;animation-delay:-.08s}
+@keyframes ritual-wiggle{from{transform:rotate(-.7deg)}to{transform:rotate(.7deg)}}
 /* Real scroll positions with native momentum and snap, shared by both planning modes. */
 .time-wheel{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:220px;margin:4px 0 12px;isolation:isolate;font-variant-numeric:tabular-nums;gap:6px}
 .time-wheel-highlight{position:absolute;inset:88px 8px;border-radius:14px;background:var(--surface-input);z-index:-1;pointer-events:none}
@@ -156,8 +159,8 @@ html:has(#appearance-dialog[open]),body:has(#appearance-dialog[open]){overflow:h
 #product-modal .schedule-date input{margin:0;height:48px;min-height:48px;padding:8px 12px}
 #product-modal :is(#alarm-form,#date-plan-form) .tone-setting{margin:0 0 18px;padding:14px 0;min-height:58px}
 #product-modal :is(#alarm-form,#date-plan-form)>.primary{margin-top:12px}
-.calendar-window{overflow:hidden}.calendar-track{position:relative;width:100%;height:100%;will-change:transform}
-.calendar-page{position:relative;width:100%;height:100%;overflow:hidden}.calendar-preview{position:absolute;top:0;pointer-events:none}
+.calendar-window{overflow:hidden}.calendar-track{position:relative;width:100%;height:var(--calendar-height)}
+.calendar-page{position:relative;width:100%;height:var(--calendar-height);overflow:visible}.calendar-preview{position:absolute;top:0;pointer-events:none}
 .calendar-preview .month-grid{transition:none!important}
 .swipe-item,.day-agenda .swipe-item{--swipe-distance:80px;border-radius:16px;background:var(--surface-page);border:0}
 .swipe-item.is-open .swipe-content{transform:translateX(var(--swipe-x,-80px))}
@@ -165,4 +168,32 @@ html:has(#appearance-dialog[open]),body:has(#appearance-dialog[open]){overflow:h
 .tomorrow-plan .swipe-content>.next-ritual{padding:14px 16px 14px 0;box-sizing:border-box}
 .tomorrow-plan .swipe-item{margin:4px 0 12px}.day-agenda .swipe-item{margin-bottom:12px}
 .swipe-content>.library-block{padding-right:16px}
-@media(prefers-reduced-motion:reduce){.playlist-card.is-managing{animation:none}}
+@media(prefers-reduced-motion:reduce){.playlist-card.is-managing .playlist-open{animation:none}}
+
+/* One touch surface and focus policy for every shared sheet. */
+html{background:var(--surface-page);scroll-padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavior:none}
+html dialog.bottom-sheet,html #appearance-dialog.bottom-sheet,html #product-modal.bottom-sheet,html #demo-dialog.bottom-sheet{animation:none;bottom:var(--keyboard-bottom,0px);max-height:calc(var(--sheet-height,100dvh) - 12px);padding-top:12px;overflow-anchor:none}
+dialog.bottom-sheet::before{display:none}
+dialog.bottom-sheet>.sheet-grip,#appearance-dialog .sheet-grip{height:24px;width:100%;display:grid;place-items:center;touch-action:none;cursor:grab;margin:0 0 8px}
+dialog.bottom-sheet>.sheet-grip::after{content:'';width:36px;height:4px;border-radius:4px;background:var(--border-subtle)}
+html dialog.bottom-sheet .dialog-head,html #appearance-dialog .dialog-head{touch-action:none;cursor:grab}
+dialog[data-dragging] .sheet-grip,dialog[data-dragging] .dialog-head{cursor:grabbing}
+dialog :is(h1,h2)[tabindex="-1"]:focus{outline:none}
+dialog .dialog-head .icon-btn,dialog .sheet-close,.buddy-sheet-head .icon-btn{border:0;background:transparent;box-shadow:none;min-width:44px;min-height:44px;display:grid;place-items:center;flex-shrink:0}
+dialog::backdrop{opacity:var(--sheet-shade,1)}
+html .search-box input{font-size:16px}
+html .bottom-nav svg,html .bottom-nav button[aria-current] svg{width:22px;height:22px;stroke-width:1.8}
+html .bottom-nav button,html .bottom-nav button[aria-current]{font-weight:600}
+html .bottom-nav .nav-icon,html .bottom-nav button:active .nav-icon{transform:none}
+html .product-content{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+html .swipe-content,html[data-theme=dark] .swipe-content{background:var(--surface-page);transition:none}
+html .swipe-item{border-radius:0;background:transparent}
+html .swipe-delete{border-radius:14px}
+.sorting .step{transition:transform .16s ease;will-change:transform}
+.sorting .drag-source{opacity:0}
+.drag-ghost.lifted-row{position:fixed;z-index:100;box-sizing:border-box;margin:0;padding:0;background:var(--surface-page);color:var(--text-primary);border:0;border-radius:14px;white-space:normal;box-shadow:0 12px 32px #0002;overflow:hidden;transform:none}
+.drag-ghost.ritual-track{display:flex;align-items:center;gap:10px;min-height:80px;padding:10px 0}
+.drag-ghost.ritual-track .drag-handle{display:grid;min-width:28px;color:var(--text-secondary);opacity:.65}
+.drag-ghost.lifted-row .step-head{opacity:1}
+@media(prefers-reduced-motion:reduce){.sorting .step{transition:none}}

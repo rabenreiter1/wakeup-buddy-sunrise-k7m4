@@ -8,6 +8,7 @@ import { localPhoto } from './media.js';
 import { setPreferences,clockLabel,locale,translateUI } from './i18n.js';
 import { setupSheets, confirmSheet, animateScreen, animateResize, refreshSheet } from './sheets.js';
 import {attachSwipe} from './swipe.js';
+import {spring,sample,releaseVelocity} from './motion.js';
 import { symbol, visualStyle, showAppearance } from './appearance.js';
 import { dayKey, localDay, weekDays, plansFor, nextPlan, monthDays, currentStreak, runDay, successful, morningState, planKey, statusForPlan, dayStatus, omitPlan, weeklyConflicts, assignWeeklyPlan, assignDatePlan, dayHasStarted } from './planning.js';
 import { DEMO_RITUAL } from './catalog.js';
@@ -91,7 +92,7 @@ function attribution(item){return item?.author&&item.author!=='Du'&&!item.custom
 function header() {
  const names={home:'Home',discover:'Entdecken',library:'Bibliothek',history:'Verlauf',plan:'Kalender',ritual:'Ritual',block:'Baustein',historyDetail:'Dein Morgen'};
  const detail=['ritual','block','historyDetail','plan','history'].includes(route);
- return `<header class="product-header fixed-nav">${detail?`<button class="header-back" data-p="back" aria-label="Zurück">${icon('back')}</button>`:`<button class="profile-avatar" data-p="profile" aria-label="Profil und Einstellungen öffnen">${data.profile.avatar?'<img src="'+data.profile.avatar+'" alt="">':esc((data.profile.name||'Du').slice(0,1).toUpperCase())}</button>`}<span>${route==='block'&&selectedItem?.blocks?'Ritual':names[route]}</span>${managingRituals?`<button class="header-manage" data-p="manage-rituals">Fertig</button>`:route==='library'?`<div class="header-actions"><button class="header-add" data-p="create" aria-label="Erstellen">${icon('plus')}</button></div>`:route==='ritual'?`<button class="header-add" ${isOwnRoutine(ritualNow())?'data-edit-ritual':'data-routine-options'}="${currentId}" aria-label="${isOwnRoutine(ritualNow())?'Ritual bearbeiten':'Weitere Optionen'}">${isOwnRoutine(ritualNow())?icon('edit'):'⋯'}</button>`:route==='block'&&selectedItem?._from==='discover'?`<button class="header-add catalog-acquire" data-p="${savedItem(selectedItem)?'open-saved':'save-detail'}" aria-label="${savedItem(selectedItem)?'Öffnen':'Merken'}"><span>${savedItem(selectedItem)?'Öffnen':'Merken'}</span></button>`:route==='block'&&libraryItem(selectedItem)?`<button class="header-add" data-p="edit-block" aria-label="Bearbeiten">${icon('edit')}</button>`:'<span class="header-spacer"></span>'}</header>`;
+ return `<header class="product-header fixed-nav">${detail?`<button class="header-back" data-p="back" aria-label="Zurück">${icon('back')}</button>`:`<button class="profile-avatar" data-p="profile" aria-label="Profil und Einstellungen öffnen">${data.profile.avatar?'<img src="'+data.profile.avatar+'" alt="">':esc((data.profile.name||'Du').slice(0,1).toUpperCase())}</button>`}<span>${route==='block'&&selectedItem?.blocks?'Ritual':names[route]}</span>${route==='library'?`<div class="header-actions"><button class="header-add" data-p="create" aria-label="Erstellen">${icon('plus')}</button></div>`:route==='ritual'?`<button class="header-add" ${isOwnRoutine(ritualNow())?'data-edit-ritual':'data-routine-options'}="${currentId}" aria-label="${isOwnRoutine(ritualNow())?'Ritual bearbeiten':'Weitere Optionen'}">${isOwnRoutine(ritualNow())?icon('edit'):'⋯'}</button>`:route==='block'&&selectedItem?._from==='discover'?`<button class="header-add catalog-acquire" data-p="${savedItem(selectedItem)?'open-saved':'save-detail'}" aria-label="${savedItem(selectedItem)?'Öffnen':'Merken'}"><span>${savedItem(selectedItem)?'Öffnen':'Merken'}</span></button>`:route==='block'&&libraryItem(selectedItem)?`<button class="header-add" data-p="edit-block" aria-label="Bearbeiten">${icon('edit')}</button>`:'<span class="header-spacer"></span>'}</header>`;
 }
 function nav() {
  const active=['home','discover','library'].includes(route)?route:navTab;
@@ -111,7 +112,7 @@ function catalogAction(item){const saved=savedItem(item);return '<button class="
 function ritualCard(r){
  return `<article class="playlist-card ${managingRituals?'is-managing':''}">${managingRituals?`<button class="ritual-remove" data-delete-kind="ritual" data-delete-id="${r.id}" aria-label="${esc(r.title)} löschen">${icon('minus')}</button>`:''}<button class="playlist-open" data-open-ritual="${r.id}" ${managingRituals?'disabled':''}>${cover(r)}<span class="playlist-copy"><strong>${esc(r.title)}</strong><span>${itemMinutes(r)} Min.</span></span></button></article>`;
 }
-function calendarCells(reference){const days=monthDays(reference),month=localDay(reference).getMonth();
+function calendarCells(reference){const days=calendarExpanded?monthDays(reference):weekDays(reference),month=localDay(reference).getMonth();
  return days.map(d=>{
   const key=dayKey(d),p=plansFor(data,key),status=dayStatus(data,key);
   const label={done:'Abgeschlossen',partial:'Teilweise durchgeführt',skipped:'Ausgelassen',planned:'Geplant',empty:'Keine Rituale'}[status];
@@ -169,7 +170,7 @@ function historyDetail(){
  const run=data.history.find(x=>x.id===currentId);if(!run)return '';
  return '<div class="history-detail-heading">'+cover(run,true)+'<div><time>'+new Date(run.startedAt||run.date).toLocaleDateString(locale(),{day:'numeric',month:'long',year:'numeric'})+'</time><h1 data-user-content>'+esc(run.title)+'</h1><p>'+run.finishedCount+' von '+run.totalSteps+' Schritte abgeschlossen</p></div></div><div class="history-steps">'+run.answers.map(a=>'<details class="history-answer"><summary>'+cover(a,true)+'<span><b data-user-content>'+esc(a.blockTitle)+'</b><span>Schritt '+(a.stepIndex+1)+'</span></span><small>'+(a.finished?'Abgeschlossen':a.skipped?'Übersprungen':'Offen')+'</small>'+icon('down')+'</summary><div class="history-answer-body">'+(a.instruction?'<span class="answer-label">Deine Anweisung</span><div class="formatted-text">'+renderRich(a.instruction)+'</div>':'')+(a.text||a.audio||a.photos?.length?'<span class="answer-label">Deine Antwort</span>':'')+(a.text?'<div class="formatted-text saved-response">'+renderRich(a.text)+'</div>':'')+(a.audio?'<audio controls src="'+a.audio+'" aria-label="Deine Aufnahme"></audio>':a.memo?'<p>Für diese ältere Aufnahme liegt keine Audiodatei vor.</p>':'')+(a.photos||[]).map(src=>'<img src="'+src+'" alt="Dein Foto aus diesem Durchlauf">').join('')+(!a.text&&!a.memo&&!a.photos?.length?'<p class="muted">Keine Antwort hinterlegt.</p>':'')+'</div></details>').join('')+'</div><div class="history-manage"><button class="quiet" data-p="export-run">Durchlauf sichern</button><button class="quiet danger" data-p="delete-run">Durchlauf löschen</button></div>';
 }
-let calendarGesture=null,calendarMoving=false,calendarSuppressClick=0,calendarMotionToken=0;
+let calendarGesture=null,calendarMoving=false,calendarSuppressClick=0,calendarMotionToken=0,calendarSpring=null,calendarPosition=0;
 function calendarOffset(direction){const date=localDay(selectedDay);if(calendarExpanded){const day=date.getDate();date.setDate(1);date.setMonth(date.getMonth()+direction);date.setDate(Math.min(day,new Date(date.getFullYear(),date.getMonth()+1,0).getDate()));}else date.setDate(date.getDate()+7*direction);return dayKey(date);}
 function prepareCalendarPages(){
  const viewport=$('.calendar-window',root),track=viewport?.querySelector('.calendar-track');if(!track)return null;
@@ -181,23 +182,24 @@ function prepareCalendarPages(){
  }
  return track;
 }
-function cancelCalendarMotion(){calendarMotionToken++;calendarMoving=false;calendarGesture=null;const track=$('.calendar-track',root);track?.getAnimations().forEach(a=>a.cancel());if(track){track.style.transform='';track.querySelectorAll('.calendar-preview').forEach(el=>el.remove());}}
-async function moveCalendar(direction){
- if(calendarMoving)return;calendarMoving=true;const token=++calendarMotionToken,track=prepareCalendarPages();if(!track){calendarMoving=false;return;}
- const width=track.getBoundingClientRect().width,start=track.style.transform||'translateX(0px)',destination=direction?calendarOffset(direction):selectedDay;
+function cancelCalendarMotion(){calendarMotionToken++;calendarSpring?.cancel();calendarMoving=false;calendarGesture=null;calendarPosition=0;const track=$('.calendar-track',root);if(track){track.style.transform='';track.querySelectorAll('.calendar-preview').forEach(el=>el.remove());}}
+async function moveCalendar(direction,velocity=0){
+ calendarSpring?.cancel();calendarMoving=true;const token=++calendarMotionToken,track=prepareCalendarPages();if(!track){calendarMoving=false;return;}
+ const width=track.getBoundingClientRect().width,destination=direction?calendarOffset(direction):selectedDay,focused=document.activeElement?.closest('.calendar-window');
  try{
-  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await track.animate([{transform:start},{transform:'translateX('+(-direction*width)+'px)'}],{duration:280,easing:'cubic-bezier(.22,1,.36,1)',fill:'forwards'}).finished.catch(()=>{});
+  calendarSpring=spring({from:calendarPosition,to:-direction*width,velocity,update:value=>{calendarPosition=value;track.style.transform=`translateX(${value}px)`;}});
+  if(!await calendarSpring.finished)return;
   if(token!==calendarMotionToken||route!=='plan')return;
-  selectedDay=destination;render();
+  calendarPosition=0;selectedDay=destination;render();if(focused)$('.calendar-window',root)?.focus({preventScroll:true});
  }finally{if(token===calendarMotionToken)calendarMoving=false;}
 }
-root.addEventListener('pointerdown',e=>{if(e.button!==0||e.isPrimary===false||calendarMoving||!e.target.closest('.calendar-window'))return;calendarGesture={x:e.clientX,y:e.clientY,id:e.pointerId,viewport:e.target.closest('.calendar-window'),axis:null,dx:0};});
+root.addEventListener('pointerdown',e=>{calendarSuppressClick=0;if(e.button!==0||e.isPrimary===false||!e.target.closest('.calendar-window'))return;calendarMotionToken++;calendarSpring?.cancel();calendarMoving=false;calendarGesture={x:e.clientX,y:e.clientY,id:e.pointerId,viewport:e.target.closest('.calendar-window'),axis:null,dx:calendarPosition,start:calendarPosition,sampleValue:calendarPosition,sampleTime:performance.now(),velocity:0};});
 root.addEventListener('pointermove',e=>{
- const g=calendarGesture;if(!g||g.id!==e.pointerId)return;g.dx=e.clientX-g.x;const dy=e.clientY-g.y;
- if(!g.axis&&Math.max(Math.abs(g.dx),Math.abs(dy))>10){g.axis=Math.abs(g.dx)>Math.abs(dy)*1.4?'x':'y';if(g.axis==='x'){g.track=prepareCalendarPages();g.viewport.setPointerCapture(e.pointerId);}}
- if(g.axis==='x'){e.preventDefault();const width=g.viewport.clientWidth;g.track.style.transform='translateX('+Math.max(-width,Math.min(width,g.dx))+'px)';}
+ const g=calendarGesture;if(!g||g.id!==e.pointerId)return;const dx=e.clientX-g.x,dy=e.clientY-g.y;g.dx=g.start+dx;
+ if(!g.axis&&Math.max(Math.abs(dx),Math.abs(dy))>6){g.axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';if(g.axis==='x'){g.track=prepareCalendarPages();g.viewport.setPointerCapture(e.pointerId);}}
+ if(g.axis==='x'){e.preventDefault();const width=g.viewport.clientWidth;calendarPosition=Math.max(-width,Math.min(width,g.dx));sample(g,calendarPosition);g.track.style.transform=`translateX(${calendarPosition}px)`;}
 });
-function releaseCalendar(e){const g=calendarGesture;if(!g||g.id!==e.pointerId)return;calendarGesture=null;if(g.axis!=='x')return;calendarSuppressClick=performance.now()+450;void moveCalendar(e.type!=='pointercancel'&&Math.abs(g.dx)>Math.min(64,g.viewport.clientWidth*.22)?(g.dx<0?1:-1):0);}
+function releaseCalendar(e){const g=calendarGesture;if(!g||g.id!==e.pointerId)return;calendarGesture=null;if(g.viewport.hasPointerCapture(e.pointerId))g.viewport.releasePointerCapture(e.pointerId);if(g.axis!=='x'){if(calendarPosition)void moveCalendar(0);return;}calendarSuppressClick=performance.now()+350;const velocity=releaseVelocity(g),direction=e.type==='pointercancel'?0:Math.abs(velocity)>.4?(velocity<0?1:-1):Math.abs(g.dx)>Math.min(64,g.viewport.clientWidth*.22)?(g.dx<0?1:-1):0;void moveCalendar(direction,velocity);}
 root.addEventListener('pointerup',releaseCalendar);root.addEventListener('pointercancel',releaseCalendar);
 root.addEventListener('click',e=>{if(performance.now()<calendarSuppressClick&&e.target.closest('.calendar-window')){e.preventDefault();e.stopImmediatePropagation();}},true);
 root.addEventListener('keydown',e=>{if(e.target.closest('.calendar-window')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();void moveCalendar(e.key==='ArrowRight'?1:-1);}});
@@ -206,6 +208,7 @@ root.addEventListener('keydown',e=>{if(e.target.closest('.calendar-window')&&['A
 let ritualPress=null,ritualPressUntil=0;
 function endRitualPress(){if(ritualPress?.active)ritualPressUntil=performance.now()+450;clearTimeout(ritualPress?.timer);ritualPress=null;}
 root.addEventListener('pointerdown',e=>{
+ if(!ritualPress?.active)ritualPressUntil=0;
  if(e.button!==0||managingRituals||!['home','library'].includes(route)||!e.target.closest('[data-open-ritual]'))return;
  endRitualPress();ritualPress={x:e.clientX,y:e.clientY,id:e.pointerId,active:false};
  ritualPress.timer=setTimeout(()=>{if(!ritualPress)return;ritualPress.active=true;ritualPressUntil=performance.now()+1000;managingRituals=true;render();announce('Rituale bearbeiten. Wähle ein Minus zum Löschen.');},550);
@@ -213,9 +216,9 @@ root.addEventListener('pointerdown',e=>{
 root.addEventListener('pointermove',e=>{if(ritualPress&&!ritualPress.active&&Math.hypot(e.clientX-ritualPress.x,e.clientY-ritualPress.y)>10)endRitualPress();});
 root.addEventListener('pointerup',endRitualPress);root.addEventListener('pointercancel',endRitualPress);
 root.addEventListener('contextmenu',e=>{if(['home','library'].includes(route)&&e.target.closest('[data-open-ritual]')){e.preventDefault();endRitualPress();ritualPressUntil=performance.now()+450;managingRituals=true;render();}});
-root.addEventListener('click',e=>{if(performance.now()<ritualPressUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
-root.addEventListener('keydown',e=>{if(e.key==='Escape'&&managingRituals){managingRituals=false;render();}});
-function updateCalendarFocus(){const viewport=$('.calendar-window',root);if(!viewport)return;const week=Number(viewport.style.getPropertyValue('--selected-week'));viewport.querySelectorAll('[data-day]').forEach((el,i)=>{const hidden=!calendarExpanded&&Math.floor(i/7)!==week;el.tabIndex=hidden?-1:0;el.setAttribute('aria-hidden',String(hidden));});}
+root.addEventListener('click',e=>{if(performance.now()<ritualPressUntil){e.preventDefault();e.stopImmediatePropagation();return;}if(managingRituals&&!e.target.closest('button,a,input,textarea,select,summary,.playlist-card')){managingRituals=false;render();}},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&managingRituals&&!document.querySelector('dialog[open]')){managingRituals=false;render();}});
+function updateCalendarFocus(){const viewport=$('.calendar-window',root);if(!viewport)return;viewport.querySelectorAll('[data-day]').forEach(el=>{el.tabIndex=0;el.removeAttribute('aria-hidden');});}
 function render() {
   const view=route+':'+(currentId||selectedItem?.id||''),sameView=root.dataset.view===view;
   const expanded=sameView?[...root.querySelectorAll('details')].map(el=>el.open):[];
@@ -400,6 +403,8 @@ root.addEventListener('click', async event => {
     if(d.p==='calendar-expand'){
  cancelCalendarMotion();
  calendarExpanded=!calendarExpanded;const viewport=$('.calendar-window',root),grid=$('.month-grid',root);
+ const existing=new Map([...grid.children].map(el=>[el.dataset.day,el])),template=document.createElement('template');template.innerHTML=calendarCells(selectedDay);
+ grid.replaceChildren(...[...template.content.children].map(el=>existing.get(el.dataset.day)||el));
  viewport.classList.toggle('expanded',calendarExpanded);viewport.classList.toggle('compact',!calendarExpanded);
  grid.classList.toggle('expanded',calendarExpanded);grid.classList.toggle('compact',!calendarExpanded);
  button.setAttribute('aria-expanded',calendarExpanded);button.querySelector('svg').outerHTML=icon(calendarExpanded?'up':'down');updateCalendarFocus();return;
@@ -609,9 +614,9 @@ modal.addEventListener('close',()=>{alarmPreview=null;stopAlarmPreview();});
 sheet.addEventListener('close',()=>{stopBuddyPreview();sheet._buddyPreview=null;});
 sheet.addEventListener('click',async event=>{
  const button=event.target.closest('[data-buddy-choose],[data-buddy-preview]');if(!button)return;
- if(button.dataset.buddyPreview){const id=button.dataset.buddyPreview,was=sheet._buddyPreview===id;stopBuddyPreview();sheet._buddyPreview=was?null:id;buddyDialog();if(!was)previewBuddy(id,()=>{sheet._buddyPreview=null;if(sheet.open&&sheet.dataset.page==='buddy')buddyDialog();});return;}
+ if(button.dataset.buddyPreview){const id=button.dataset.buddyPreview,was=sheet._buddyPreview===id;stopBuddyPreview();sheet._buddyPreview=was?null:id;updateBuddySelection();if(!was)previewBuddy(id,()=>{sheet._buddyPreview=null;if(sheet.open&&sheet.dataset.page==='buddy')updateBuddySelection();});return;}
  if(sheet._savingBuddy)return;sheet._savingBuddy=true;const previous=data.profile.buddy;
- try{stopBuddyPreview();data.profile.buddy=button.dataset.buddyChoose;await persistProduct();selectBuddy(data.profile.buddy);await sheet.close();navigate('home');}
+ try{stopBuddyPreview();sheet._buddyPreview=null;data.profile.buddy=button.dataset.buddyChoose;await persistProduct();selectBuddy(data.profile.buddy);updateBuddySelection();const friend=root.querySelector('.welcome-friend');if(friend)friend.innerHTML=buddyArt();}
  catch{data.profile.buddy=previous;sheet.querySelector('#buddy-status').textContent='Buddy konnte nicht gespeichert werden. Bitte erneut versuchen.';}
  finally{sheet._savingBuddy=false;}
 });
@@ -621,9 +626,13 @@ window.addEventListener('hashchange',async()=>{
   const hash=location.hash.slice(1);
   if(hash==='editor'){if(!root.hidden)await editor();return;}
   if(root.hidden){await openProduct(hash);return;}
-  resolveRoute(hash);render();
+  cancelCalendarMotion();endRitualPress();managingRituals=false;resolveRoute(hash);render();
 });
 
+function updateBuddySelection(){
+ sheet.querySelectorAll('[data-buddy-choose]').forEach(button=>{const selected=button.dataset.buddyChoose===selectedBuddy().id;button.setAttribute('aria-pressed',String(selected));button.querySelector('.selection-circle').classList.toggle('selected',selected);});
+ sheet.querySelectorAll('[data-buddy-preview]').forEach(button=>{const playing=button.dataset.buddyPreview===sheet._buddyPreview;button.setAttribute('aria-pressed',String(playing));button.innerHTML=icon(playing?'stop':'play');button.closest('.buddy-option').classList.toggle('previewing',playing);});
+}
 function buddyDialog(){
  const scroll=sheet.dataset.page==='buddy'?sheet.scrollTop:0;sheet.dataset.page='buddy';
  sheet.innerHTML='<div class="buddy-sheet-head"><button class="icon-btn" data-sheet="profile" aria-label="Zurück zum Profil">'+icon('back')+'</button><h1>Dein Buddy</h1><button class="icon-btn" data-sheet="close" aria-label="Schließen">'+icon('close')+'</button></div><div class="buddy-options">'+BUDDIES.map(b=>'<div class="buddy-option '+(sheet._buddyPreview===b.id?'previewing':'')+'"><button data-buddy-choose="'+b.id+'" aria-pressed="'+(selectedBuddy().id===b.id)+'">'+buddyArt(b.id)+'<span><b>'+b.name+'</b><small>'+b.trait+'</small><small>'+b.gender+'e Stimme</small></span>'+selectionCircle(selectedBuddy().id===b.id)+'</button><button class="round-button" data-buddy-preview="'+b.id+'" aria-pressed="'+(sheet._buddyPreview===b.id)+'" aria-label="'+b.name+' anhören">'+icon(sheet._buddyPreview===b.id?'stop':'play')+'</button></div>').join('')+'</div><p class="voice-availability">Hörproben nutzen verfügbare Systemstimmen. Je nach Browser können sich Buddies eine Grundstimme teilen.</p><p id="buddy-status" role="status"></p>';
