@@ -115,7 +115,7 @@ html[data-theme=dark] .rich-edit:empty:before{color:#a99db7}
 .swipe-content{position:relative;background:var(--paper,#fffcf7);transform:translateX(var(--swipe-x,0px));transition:transform .18s ease;min-height:74px}
 .swipe-item.is-open .swipe-content{transform:translateX(var(--swipe-x,-72px))}
 .swipe-delete{position:absolute;inset:0 0 0 auto;width:72px;background:#f8dcd9;color:#8e3035;display:grid;place-items:center}
-.swipe-delete[aria-hidden=true]{visibility:hidden}.swipe-item[style] .swipe-delete{visibility:visible}
+.swipe-delete[aria-hidden=true]{visibility:hidden}.swipe-item[style*="--swipe-x"] .swipe-delete{visibility:visible}
 
 
 .swipe-content>.library-block{padding-right:0;margin:0;width:100%}

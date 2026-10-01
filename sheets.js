@@ -39,6 +39,23 @@ export function setupSheets(){
  if(installed)return;installed=true;
  const prototype=HTMLDialogElement.prototype,nativeShow=prototype.showModal,nativeClose=prototype.close;
  const states=new WeakMap();
+ let pageLock=null;
+ const lockPage=()=>{
+  if(pageLock)return;
+  const body=document.body;
+  pageLock={x:scrollX,y:scrollY,view:location.hash,style:body.getAttribute('style')};
+  body.style.setProperty('--page-lock-top',pageLock.y+'px');
+  const gutter=innerWidth-document.documentElement.clientWidth;
+  Object.assign(body.style,{position:'fixed',top:-pageLock.y+'px',left:'0',width:'100%',overflow:'hidden'});
+  if(gutter)body.style.paddingRight=gutter+'px';
+ };
+ const unlockPage=()=>{
+  if(!pageLock||document.querySelector('dialog[open]'))return;
+  const saved=pageLock;pageLock=null;
+  if(saved.style===null)document.body.removeAttribute('style');else document.body.setAttribute('style',saved.style);
+  const sameView=location.hash===saved.view;
+  window.scrollTo({left:sameView?saved.x:0,top:sameView?saved.y:0,behavior:'instant'});
+ };
  const updateViewport=()=>{const v=window.visualViewport;document.documentElement.style.setProperty('--sheet-height',(v?.height||innerHeight)+'px');document.documentElement.style.setProperty('--keyboard-bottom',Math.max(0,innerHeight-(v?.height||innerHeight)-(v?.offsetTop||0))+'px');};
  updateViewport();window.visualViewport?.addEventListener('resize',updateViewport);window.visualViewport?.addEventListener('scroll',updateViewport);
  const paint=(dialog,value)=>{const state=states.get(dialog);state.position=value;dialog.style.transform=value===0?'none':state.side?`translateX(${-value}px)`:`translateY(${value}px)`;dialog.style.setProperty('--sheet-shade',String(Math.max(0,1-value/state.size)));};
@@ -53,6 +70,21 @@ export function setupSheets(){
   prepareContent(dialog);
   new MutationObserver(()=>prepareContent(dialog)).observe(dialog,{childList:true});
   let drag=null;
+  dialog.addEventListener('close',unlockPage);
+  // Contain single-finger scrolling even on Safari versions with elastic overscroll.
+  let touch=null;
+  dialog.addEventListener('touchstart',e=>{touch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
+  dialog.addEventListener('touchmove',e=>{
+   if(!touch||e.touches.length!==1)return;
+   const next=e.touches[0],dx=next.clientX-touch.x,dy=next.clientY-touch.y;touch={x:next.clientX,y:next.clientY};
+   if(e.target.closest('.sheet-grip,.dialog-head'))return;
+   if(e.target.closest('input,textarea,[contenteditable=true]'))return;
+   let canScroll=false;
+   for(let scroller=e.target;scroller&&dialog.contains(scroller);scroller=scroller.parentElement){
+    if((scroller===dialog||/auto|scroll/.test(getComputedStyle(scroller).overflowY))&&(dy<0?scroller.scrollTop+scroller.clientHeight<scroller.scrollHeight-1:scroller.scrollTop>0)){canScroll=true;break;}
+   }
+   if(Math.abs(dx)>Math.abs(dy)||!canScroll)e.preventDefault();
+  },{passive:false});
   dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();});
   dialog.addEventListener('pointerdown',event=>{
    if(side||full||!event.target.closest('.sheet-grip,.dialog-head')||event.target.closest('button,input,a')||event.button!==0)return;
@@ -80,7 +112,7 @@ export function setupSheets(){
   prepareContent(this);const state=states.get(this);
   if(state.closing){state.motion?.cancel();state.closing=false;delete this.dataset.closing;settle(this,0);return;}
   if(this.open)return;
-  this.style.transform='';nativeShow.call(this);this.querySelector('h1,h2')?.focus({preventScroll:true});
+  lockPage();this.style.transform='';nativeShow.call(this);this.querySelector('h1,h2')?.focus({preventScroll:true});
   state.size=(state.side?this.getBoundingClientRect().width:this.getBoundingClientRect().height)+32;
   paint(this,reduced()||state.full?0:state.size);settle(this,0);
  };

@@ -74,9 +74,12 @@ entries.push(
  ['Alle löschen','Delete all','Tout supprimer'],['Keine Entwürfe.','No drafts.','Aucun brouillon.'],['Entwurf löschen','Delete draft','Supprimer le brouillon'],['Entwurf gelöscht.','Draft deleted.','Brouillon supprimé.'],['Entwürfe gelöscht.','Drafts deleted.','Brouillons supprimés.'],['Rückgängig','Undo','Annuler'],['Öffnen','Open','Ouvrir'],['Zur Bibliothek hinzufügen','Add to library','Ajouter à la bibliothèque'],['In deiner Bibliothek gespeichert.','Saved to your library.','Enregistré dans votre bibliothèque.'],['Ritual ersetzen','Replace ritual','Remplacer le rituel'],['Änderung speichern','Save change','Enregistrer la modification'],['Wochentage übernehmen','Replace weekdays','Remplacer les jours'],['Bereits geplant:','Already planned:','Déjà prévu :'],['Pro Tag ist ein Ritual möglich.','One ritual is possible per day.','Un rituel est possible par jour.']
 );
 const dictionary=new Map(entries.map(([de,en,fr])=>[de,{en,fr}]));
+dictionary.set('Baustein aus Ritual entfernt.',{en:'Block removed from ritual.',fr:'Bloc retiré du rituel.'});
+dictionary.set('Datum wählen',{en:'Choose date',fr:'Choisir une date'});
 export function t(text){
  if(preferences.language==='de')return text;const lang=preferences.language,trim=text.trim(),direct=dictionary.get(trim)?.[lang];
  if(direct)return text.replace(trim,direct);
+ if(trim.endsWith(' aus Ritual entfernen'))return text.replace(' aus Ritual entfernen',lang==='en'?' — remove from ritual':' — retirer du rituel');
  if(trim.includes(' · '))return text.split(' · ').map(part=>t(part)).join(' · ');
  if(trim.startsWith('Von '))return text.replace('Von ',lang==='en'?'By ':'Par ');
  const draftCount=trim.match(/^(\d+) Entwürfe$/);if(draftCount)return text.replace(trim,draftCount[1]+(lang==='en'?' drafts':' brouillons'));
