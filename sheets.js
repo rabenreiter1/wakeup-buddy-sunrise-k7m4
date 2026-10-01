@@ -1,5 +1,5 @@
 // Shared motion: keep controls usable, preserve state, honour reduced motion.
-const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+import {spring, sample, releaseVelocity, reducedMotion as reduced} from './motion.js';
 const ease='cubic-bezier(.22,1,.36,1)';
 const motions=new WeakMap();
 function animate(element,frames,duration){
@@ -19,6 +19,7 @@ export function animateResize(element,fromHeight){
 export function refreshSheet(dialog,update){
  const open=dialog.open&&!dialog.dataset.closing,height=dialog.getBoundingClientRect().height,scroll=dialog.scrollTop;
  update();
+ prepareContent(dialog);
  if(!open)return;
  dialog.scrollTop=scroll;
  const next=dialog.getBoundingClientRect().height;
@@ -26,31 +27,47 @@ export function refreshSheet(dialog,update){
  const content=dialog.querySelector('form,.modal-blocks,.music-tracks')||dialog.lastElementChild;
  if(content)animate(content,[{opacity:.3},{opacity:1}],160);
 }
+function prepareContent(dialog){
+ if(dialog.dataset.sheetMotion==='bottom'&&!dialog.querySelector('.sheet-grip')){
+  const grip=document.createElement('div');grip.className='sheet-grip';grip.setAttribute('aria-hidden','true');dialog.prepend(grip);
+ }
+ const heading=dialog.querySelector('h1,h2');
+ if(heading){heading.tabIndex=-1;heading.setAttribute('autofocus','');}
+}
 let installed=false;
 export function setupSheets(){
  if(installed)return;installed=true;
  const prototype=HTMLDialogElement.prototype,nativeShow=prototype.showModal,nativeClose=prototype.close;
- const closing=new WeakMap();
+ const states=new WeakMap();
+ const updateViewport=()=>{const v=window.visualViewport;document.documentElement.style.setProperty('--sheet-height',(v?.height||innerHeight)+'px');document.documentElement.style.setProperty('--keyboard-bottom',Math.max(0,innerHeight-(v?.height||innerHeight)-(v?.offsetTop||0))+'px');};
+ updateViewport();window.visualViewport?.addEventListener('resize',updateViewport);window.visualViewport?.addEventListener('scroll',updateViewport);
+ const paint=(dialog,value)=>{const state=states.get(dialog);state.position=value;dialog.style.transform=value===0?'none':state.side?`translateX(${-value}px)`:`translateY(${value}px)`;dialog.style.setProperty('--sheet-shade',String(Math.max(0,1-value/state.size)));};
+ const settle=(dialog,to,velocity=0)=>{const state=states.get(dialog);state.motion?.cancel();dialog.dataset.settling='true';const motion=spring({from:state.position,to,velocity,update:value=>paint(dialog,value)});state.motion=motion;motion.finished.then(()=>{if(state.motion===motion)delete dialog.dataset.settling;});return motion.finished;};
  const prepare=dialog=>{
   if(dialog.dataset.motionReady)return;
   dialog.dataset.motionReady='true';
   const side=dialog.id==='profile-sheet',full=dialog.classList.contains('photo-fullscreen');
   if(!side&&!full)dialog.classList.add('bottom-sheet');
   dialog.dataset.sheetMotion=side?'side':full?'full':'bottom';
+  states.set(dialog,{side,full,position:0,size:1,motion:null,closing:false});
+  prepareContent(dialog);
+  new MutationObserver(()=>prepareContent(dialog)).observe(dialog,{childList:true});
   let drag=null;
   dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();});
   dialog.addEventListener('pointerdown',event=>{
-   const grip=dialog.id==='appearance-dialog'?'.sheet-grip':'.dialog-head';
-   if(side||full||!event.target.closest(grip)||event.target.closest('button,input,a')||event.button!==0)return;
-   motions.get(dialog)?.cancel();drag={y:event.clientY,x:event.clientX,delta:0};dialog.setPointerCapture(event.pointerId);
+   if(side||full||!event.target.closest('.sheet-grip,.dialog-head')||event.target.closest('button,input,a')||event.button!==0)return;
+   const state=states.get(dialog);state.motion?.cancel();state.closing=false;delete dialog.dataset.closing;delete dialog.dataset.settling;
+   drag={id:event.pointerId,y:event.clientY,x:event.clientX,start:state.position,sampleValue:state.position,sampleTime:performance.now(),velocity:0};dialog.setPointerCapture(event.pointerId);
+   dialog.dataset.dragging='true';
   });
   dialog.addEventListener('pointermove',event=>{
-   if(!drag)return;drag.delta=Math.max(0,event.clientY-drag.y);dialog.style.transform=`translateY(${drag.delta}px)`;
+   if(!drag||event.pointerId!==drag.id)return;const value=Math.max(0,drag.start+event.clientY-drag.y);sample(drag,value);paint(dialog,value);
   });
   const release=event=>{
-   if(!drag)return;const {delta,x}=drag;drag=null;
-   if(event.type!=='pointercancel'&&delta>70&&Math.abs(event.clientX-x)<90){dialog.close();return;}
-   dialog.style.transform='';animate(dialog,[{transform:`translateY(${delta}px)`},{transform:'none'}],200);
+   if(!drag||event.pointerId!==drag.id)return;const g=drag,state=states.get(dialog),velocity=releaseVelocity(g);drag=null;delete dialog.dataset.dragging;
+   if(dialog.hasPointerCapture(event.pointerId))dialog.releasePointerCapture(event.pointerId);
+   if(event.type!=='pointercancel'&&(velocity>.45&&state.position>12||velocity>-.35&&state.position>Math.min(120,state.size*.28))){state.releaseVelocity=velocity;dialog.close();return;}
+   settle(dialog,0,velocity);
   };
   dialog.addEventListener('pointerup',release);dialog.addEventListener('pointercancel',release);
   dialog.addEventListener('click',event=>{
@@ -60,28 +77,23 @@ export function setupSheets(){
  };
  prototype.showModal=function(){
   prepare(this);
-  const pending=closing.get(this);
-  if(pending){pending.animation?.cancel();closing.delete(this);delete this.dataset.closing;this.style.transform='';}
+  prepareContent(this);const state=states.get(this);
+  if(state.closing){state.motion?.cancel();state.closing=false;delete this.dataset.closing;settle(this,0);return;}
   if(this.open)return;
-  this.style.transform='';nativeShow.call(this);
-  const transform=this.dataset.sheetMotion==='side'?'translateX(-100%)':this.dataset.sheetMotion==='full'?'scale(.96)':'translateY(calc(100% + 32px))';
-  animate(this,[{opacity:.3,transform},{opacity:1,transform:'none'}],300);
+  this.style.transform='';nativeShow.call(this);this.querySelector('h1,h2')?.focus({preventScroll:true});
+  state.size=(state.side?this.getBoundingClientRect().width:this.getBoundingClientRect().height)+32;
+  paint(this,reduced()||state.full?0:state.size);settle(this,0);
  };
  prototype.close=function(value){
   if(!this.open)return;
-  if(closing.has(this))return closing.get(this).done;
   prepare(this);
-  if(reduced()){this.style.transform='';nativeClose.call(this,value);return;}
-  const start=getComputedStyle(this).transform;
-  const transform=this.dataset.sheetMotion==='side'?'translateX(-100%)':this.dataset.sheetMotion==='full'?'scale(.96)':'translateY(calc(100% + 32px))';
-  this.dataset.closing='true';
-  const token={animation:animate(this,[{opacity:1,transform:start},{opacity:0,transform}],200)};
-  closing.set(this,token);
-  token.done=token.animation.finished.then(()=>{
-   if(closing.get(this)!==token)return;
-   closing.delete(this);delete this.dataset.closing;this.style.transform='';nativeClose.call(this,value);
-  }).catch(()=>{});
-  return token.done;
+  const state=states.get(this);
+  if(reduced()){state.motion?.cancel();state.closing=false;state.releaseVelocity=0;delete this.dataset.closing;delete this.dataset.settling;paint(this,0);nativeClose.call(this,value);return Promise.resolve();}
+  if(state.closing)return state.done;state.closing=true;this.dataset.closing='true';
+  state.size=(state.side?this.offsetWidth:this.offsetHeight)+32;
+  state.done=settle(this,state.full?0:state.size,state.releaseVelocity||0).then(completed=>{
+   if(!completed||!state.closing)return;state.closing=false;state.releaseVelocity=0;delete this.dataset.closing;nativeClose.call(this,value);this.style.transform='';this.style.removeProperty('--sheet-shade');
+  });return state.done;
  };
  document.querySelectorAll('dialog').forEach(prepare);
 }

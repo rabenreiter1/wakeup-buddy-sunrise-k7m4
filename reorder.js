@@ -6,22 +6,21 @@ export function attachReorder(root, { getSteps, setSteps, announce }) {
   root.addEventListener('pointerdown', event => {
     const handle = event.target.closest('[data-drag]');
     if (!handle || handle.disabled || event.button !== 0 || drag) return;
-    drag = { id: handle.dataset.drag, pointer: event.pointerId, startY: event.clientY, y: event.clientY, moved: false, handle, row: handle.closest('.step'), original: [...getSteps()] };
+    const row=handle.closest('.step'),rect=row.getBoundingClientRect();
+    drag = { id: handle.dataset.drag, pointer: event.pointerId, startY: event.clientY, y: event.clientY, grabOffset:event.clientY-rect.top, moved: false, handle, row, original: [...getSteps()] };
     handle.setPointerCapture(event.pointerId);
   });
   function position() {
     if (!drag?.moved) return;
-    drag.ghost.style.top = `${drag.y - 24}px`;
+    drag.ghost.style.top = `${drag.y - drag.grabOffset}px`;
     const rows = [...list().children].filter(row => row !== drag.row);
-    const index = rows.findIndex(row => { const r = row.getBoundingClientRect(); return drag.y < r.top + r.height / 2; });
+    const index = rows.findIndex(row => { const r = drag.rects.get(row); return drag.y < r.top-scrollY + r.height / 2; });
     drag.targetIndex = index < 0 ? rows.length : index;
-    list().querySelectorAll('.drop-before,.drop-after').forEach(row => row.classList.remove('drop-before','drop-after'));
-    if (rows[index]) rows[index].classList.add('drop-before');
-    else rows.at(-1)?.classList.add('drop-after');
+    [...list().children].forEach((row,i)=>{if(row===drag.row)return;const shift=i>drag.from&&i<=drag.targetIndex?-drag.space:i<drag.from&&i>=drag.targetIndex?drag.space:0;row.style.transform=`translateY(${shift}px)`;});
   }
   function autoScroll() {
     if (!drag?.moved) return;
-    const navBottom = root.querySelector('.fixed-nav').getBoundingClientRect().bottom;
+    const navBottom = root.querySelector('.fixed-nav')?.getBoundingClientRect().bottom||0;
     if (drag.y < navBottom + 35) window.scrollBy(0, -9);
     else if (drag.y > innerHeight - 65) window.scrollBy(0, 9);
     position();
@@ -35,10 +34,14 @@ export function attachReorder(root, { getSteps, setSteps, announce }) {
     if (!drag.moved) {
       drag.moved = true;
       list().classList.add('sorting'); drag.row.classList.add('drag-source');
-      drag.ghost = document.createElement('div'); drag.ghost.className = 'drag-ghost';
-      drag.ghost.textContent = getSteps().find(s => s.id === drag.id)?.message?.text || getSteps().find(s => s.id === drag.id)?.title || 'Schritt';
-      const rect = list().getBoundingClientRect();
+      drag.rects=new Map([...list().children].map(row=>{const r=row.getBoundingClientRect();return [row,{top:r.top+scrollY,height:r.height}];}));drag.from=[...list().children].indexOf(drag.row);
+      const rect = drag.row.getBoundingClientRect();drag.space=rect.height+parseFloat(getComputedStyle(list()).rowGap||0);
+      if(!Number.isFinite(drag.space))drag.space=rect.height;
+      drag.ghost = drag.row.cloneNode(true);drag.ghost.classList.remove('drag-source');drag.ghost.classList.add('drag-ghost','lifted-row');drag.ghost.inert=true;drag.ghost.setAttribute('aria-hidden','true');
+      drag.ghost.removeAttribute('id');drag.ghost.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+      drag.ghost.querySelectorAll('input,textarea,select').forEach((el,i)=>{el.value=drag.row.querySelectorAll('input,textarea,select')[i].value;});
       drag.ghost.style.left = `${rect.left}px`; drag.ghost.style.width = `${rect.width}px`;
+      drag.ghost.style.height = `${rect.height}px`;
       document.body.append(drag.ghost); autoScroll();
     }
     position();
@@ -47,6 +50,7 @@ export function attachReorder(root, { getSteps, setSteps, announce }) {
     if (!drag) return;
     const current = drag; drag = null;
     cancelAnimationFrame(current.frame); current.ghost?.remove();
+    list()?.classList.remove('sorting');list()?.querySelectorAll('.step').forEach(row=>{row.style.transform='';row.classList.remove('drag-source');});
     if (current.handle.hasPointerCapture(current.pointer)) current.handle.releasePointerCapture(current.pointer);
     if (current.moved) {
       const steps = [...current.original];
