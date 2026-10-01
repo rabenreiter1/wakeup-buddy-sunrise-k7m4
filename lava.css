@@ -1,0 +1,33 @@
+/* Covers identify the content; the living Buddy identifies the companion. */
+.ritual-lava{display:block;width:100%;height:100%;pointer-events:none}
+.ritual-art{display:block;width:100%;height:100%;overflow:hidden;border-radius:inherit}
+.item-cover,.item-cover:has(.ritual-art):not(.small-cover){aspect-ratio:1;border-radius:24%}
+.item-cover>.ritual-art,.small-cover>.ritual-art{width:100%;height:100%;border-radius:inherit}
+.item-cover>.block-form,.small-cover>.block-form{width:76%;height:76%}
+.block-form>svg{display:block;width:100%;height:100%}
+
+
+.ritual-hero{align-items:center;text-align:center}
+.ritual-hero>.item-cover{width:min(200px,64%);height:auto;max-width:200px;margin:8px auto 16px;border-radius:24%}
+.ritual-hero h1,.ritual-hero>p{text-align:center}
+.ritual-auto-cover>.item-cover{width:min(180px,60%);margin:auto}
+.ritual-auto-cover{text-align:center}
+.featured-card .item-cover{aspect-ratio:1;border-radius:24%}
+.look-grid .block-form{width:90%;height:90%}
+.look-preview>.block-form{width:78px;height:78px}
+.story-avatar>.block-form{width:100%;height:100%;padding:7px;background:#ffffffa6;border-radius:30%}
+.story-avatar .block-form>svg{width:100%;height:100%;max-width:none}
+.calendar-symbol>.ritual-art{border-radius:25%}
+.story-face,.story-finish{isolation:isolate;--scene-ink:#35273e;--scene-dark:#35273e;color:#35273e;background:#faf6ff}
+.story-face .lava-background,.story-finish .lava-background{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+.story-face .story-glow{display:none}
+.story-face .story-header,.story-face .story-footer{background:transparent}
+.story-face .story-text-card,.story-face .story-response,.story-face .story-step-label{color:#35273e}
+.story-face .story-owner>span,.story-face .story-step-label,.story-face .story-status,.story-face .story-clock,.story-face .story-help{color:#5b4867;opacity:1}
+.story-face .story-footer{border-top-color:#35273e18}
+.story-face .story-answer,.story-face [contenteditable]{color:#35273e}
+.story-face .story-response ::placeholder{color:#766780}
+.story-finish .story-eyebrow,.story-finish>p{color:#51415c}
+.story-finish .finish-button{background:#382843;color:#fff}
+.story-face .round-button,.story-finish>.story-close{background:#ffffff70;color:#35273e}
+@media(max-width:360px){.ritual-hero>.item-cover{width:160px}}

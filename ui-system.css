@@ -1,0 +1,168 @@
+/* Shared surfaces and interaction states. The brand orange is an accent, not a page tint. */
+:root{--surface-page:#fffdf9;--surface-raised:#fffdfb;--surface-input:#f5f1f8;--text-primary:#35293f;--text-secondary:#74627e;--border-subtle:#e9e1ee;--button-bg:#3d2b4b;--button-hover:#4d355f;--button-text:#fff;--danger:#ae4045;--heat-empty:#eee8f2;--heat-done:#548559;--heat-partial:#a892c0}
+:root[data-theme=dark]{--surface-page:#1d1923;--surface-raised:#292330;--surface-input:#302937;--text-primary:#f3edf8;--text-secondary:#bcb0c8;--border-subtle:#43394d;--button-bg:#4d365f;--button-hover:#604374;--button-text:#fff;--danger:#ef969a;--heat-empty:#39313f;--heat-done:#79ae7d;--heat-partial:#aa91c4;--page-surface:#1d1923}
+html body,html[data-theme=dark] body{--paper:var(--surface-page);--soft:var(--surface-input);--ink:var(--text-primary);--muted:var(--text-secondary);--line:var(--border-subtle);background:var(--surface-page);color:var(--text-primary)}
+html .product-shell,html[data-theme=dark] .product-shell,html .app,html[data-theme=dark] .app{background:var(--page-surface);background-attachment:fixed;color:var(--text-primary)}
+html .product-shell .product-header,html[data-theme=dark] .product-shell .product-header{background:transparent;border-bottom:0;color:var(--text-primary);backdrop-filter:blur(16px)}
+html :is(dialog.bottom-sheet,.profile-sheet),html[data-theme=dark] :is(dialog.bottom-sheet,.profile-sheet,#appearance-dialog,#product-modal,#demo-dialog){background:var(--surface-page);color:var(--text-primary);--paper:var(--surface-page);--ink:var(--text-primary);--muted:var(--text-secondary);--line:var(--border-subtle);--soft:var(--surface-input)}
+html .product-shell .history-card,html[data-theme=dark] .product-shell .history-card{background:var(--surface-raised);border:1px solid var(--border-subtle);color:var(--text-primary)}
+html .product-shell .history-card :is(time,small),html[data-theme=dark] .product-shell .history-card :is(time,small){color:var(--text-secondary)}
+html .heat-day,html[data-theme=dark] .heat-day{background:var(--heat-empty)}
+html .heat-day.done,html .heat-legend .done{background:var(--heat-done)}
+html .heat-day.partial,html .heat-legend .partial{background:var(--heat-partial)}
+html .heat-day.future,html[data-theme=dark] .heat-day.future{background:var(--surface-input);opacity:.45}
+html .bottom-nav,html[data-theme=dark] .bottom-nav{background:var(--surface-raised);border-color:var(--border-subtle)}
+html :is(.primary,.start-ritual,.finish-button),html[data-theme=dark] :is(.primary,.start-ritual,.story-finish .finish-button){background:var(--button-bg);color:var(--button-text);border-color:transparent;box-shadow:none}
+html :is(.primary,.start-ritual,.finish-button):hover:enabled,html[data-theme=dark] :is(.primary,.start-ritual,.story-finish .finish-button):hover:enabled{background:var(--button-bg);color:var(--button-text);box-shadow:none;transform:none}
+html :is(.primary,.start-ritual,.finish-button):active:enabled,html[data-theme=dark] :is(.primary,.start-ritual,.story-finish .finish-button):active:enabled{background:var(--button-hover);color:var(--button-text);transform:scale(.98)}
+html :is(.primary,.start-ritual,.finish-button):disabled,html[data-theme=dark] :is(.primary,.start-ritual,.finish-button):disabled{background:var(--surface-input);color:var(--text-secondary);opacity:.65}
+html .danger,html[data-theme=dark] .danger{color:var(--danger)}
+html :is(.create-option,.planned-ritual,.target-rituals button),html[data-theme=dark] :is(.create-option,.planned-ritual,.target-rituals button){background:transparent;color:var(--text-primary)}
+html :is(.field-input,.search-box,textarea),html[data-theme=dark] :is(.field-input,.search-box,textarea){background:var(--surface-input);color:var(--text-primary);border-color:var(--border-subtle)}
+html .secondary,html[data-theme=dark] .secondary{color:var(--text-primary);border-color:var(--border-subtle);background:transparent}
+html .buddy-setting>span:not(.buddy-character){gap:4px;line-height:1.3}
+html .buddy-setting b{font-size:19px;font-weight:650;color:var(--text-primary)}
+html .buddy-setting small{font-size:13px;color:var(--text-secondary)}
+html .buddy-setting{padding:14px 0 18px;gap:16px}
+.ritual-track-list.is-reordering .drag-handle{display:grid;color:var(--text-secondary);min-width:28px;margin:0;opacity:.65;touch-action:none}
+.ritual-track-list.is-reordering .drag-handle:focus-visible,.ritual-track-list.is-reordering .drag-handle:hover{opacity:1}
+.section-heading>[data-p=add-block]{margin-left:auto;width:44px;height:44px;padding:10px}
+.catalog-acquire{display:inline-flex;gap:5px;align-items:center;justify-content:center;min-height:44px;min-width:44px;font-size:12px;font-weight:600;color:var(--text-primary);flex:none;white-space:nowrap;border:0;background:transparent;padding:8px}
+.catalog-acquire>svg{width:18px;height:18px;flex:none}
+.catalog-acquire.is-saved>svg{width:14px;height:14px;color:var(--text-secondary)}
+.cover-quadrant{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.catalog-card{display:flex;align-items:center;gap:8px}.catalog-card>button[data-catalog]{flex:1;min-width:0;padding-right:0}.catalog-card .catalog-copy{padding-right:0}
+.discover-ritual>.catalog-acquire{align-self:flex-start;padding-left:0;margin-top:2px}
+.discover-ritual .playlist-open{height:auto}
+.detail-actions .saved-status{grid-column:1/-1;display:flex;gap:7px;align-items:center;color:var(--text-secondary);font-size:13px}
+.detail-actions .saved-status>svg{width:16px;height:16px}
+.draft-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--text-secondary)}
+.draft-toolbar button{min-height:44px}.draft-list{min-height:220px;max-height:50dvh;overflow:auto;margin:4px 0 12px}
+.draft-list .create-option{margin:0;width:100%;text-align:left;min-height:64px;font-size:16px;gap:16px;border-bottom:1px solid var(--border-subtle)}
+.draft-list .create-option>svg{margin-left:auto;flex:none}.draft-feedback{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--text-secondary)}
+.draft-feedback button{min-height:44px;text-decoration:underline;color:var(--text-primary)}
+.schedule-conflict{padding:12px 14px;border:1px solid var(--border-subtle);border-left:3px solid #ffb100;border-radius:10px;font-size:13px;line-height:1.5;color:var(--text-secondary);margin:0 0 16px}
+.schedule-conflict b{font-weight:600;color:var(--text-primary)}
+#weekly-conflict{margin:12px 0 0}
+/* Equal 5×4 selectors. The only scrolling fallback is a short viewport or large text. */
+#appearance-dialog{width:min(100%,480px);max-height:calc(100dvh - 20px);overflow-y:auto}
+#appearance-dialog .look-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:auto;gap:8px;padding:0;overflow:visible;max-height:none}
+#appearance-dialog .look-grid>button{position:relative;aspect-ratio:1;width:100%;height:auto;min-width:0;min-height:0;margin:0;padding:8px;border:2px solid transparent;border-radius:14px;display:grid;place-items:center}
+#appearance-dialog .look-grid>button[aria-pressed=true]{border-color:var(--ink)}
+#appearance-dialog .look-grid.color>button{background:var(--swatch)}
+#appearance-dialog .look-grid.color>button>span{display:none}
+#appearance-dialog .look-grid.color>button[aria-pressed=true]::after{content:'✓';font-size:24px;line-height:1;color:var(--swatch-ink);position:absolute;inset:0;display:grid;place-items:center}
+#appearance-dialog .look-grid.symbol .block-form{width:100%;height:100%;padding:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center}
+#appearance-dialog .look-grid.symbol .block-symbol-svg{width:100%;height:100%}
+#appearance-dialog .look-preview{min-height:72px;height:72px;margin:12px 0 16px}
+#appearance-dialog .look-preview>.visual-symbol{width:56px;height:56px;flex:none}
+#appearance-dialog>.primary{margin-top:20px}
+/* Keep the date cells mounted; animate the viewport, never each cell's dimensions. */
+.calendar-window{height:56px;overflow:clip;overflow-anchor:none;transition:height .42s cubic-bezier(.22,1,.36,1)}
+.calendar-window.expanded{height:376px}
+.calendar-window .month-grid,.calendar-window .month-grid.expanded,.calendar-window .month-grid.compact{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:56px;gap:8px 4px;animation:none;padding:0;margin:0;transform:translateY(calc(var(--selected-week) * -64px));transition:transform .42s cubic-bezier(.22,1,.36,1);overflow:visible}
+.calendar-window.expanded .month-grid{transform:translateY(0)}
+.calendar-window .month-day,.calendar-window .month-grid.compact .month-day{height:56px;min-height:56px;box-sizing:border-box;transition:background-color .16s ease,border-color .16s ease;animation:none}
+.calendar-weekdays{gap:4px}
+@media(hover:hover) and (pointer:fine){html :is(.primary,.start-ritual,.finish-button):hover:enabled,html[data-theme=dark] :is(.primary,.start-ritual,.story-finish .finish-button):hover:enabled{background:var(--button-hover);color:var(--button-text)}.catalog-acquire:hover{color:var(--text-primary);text-decoration:underline}}
+@media(prefers-reduced-motion:reduce){.calendar-window,.calendar-window .month-grid{transition:none}html :is(.primary,.start-ritual,.finish-button):active:enabled{transform:none}}
+
+.catalog-card>.catalog-acquire{width:82px}
+.product-header>.catalog-acquire{width:auto;min-width:44px;border-radius:22px}
+
+#product-modal .draft-toolbar>span{white-space:nowrap}#product-modal .draft-toolbar>button{width:auto;flex:none;margin:0}#product-modal .draft-list .create-option{color:var(--text-primary);background:transparent}.draft-list .swipe-content{background:var(--surface-page)}
+
+#appearance-dialog .look-preview>.block-form{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center}#appearance-dialog .look-preview>.block-form>svg{width:100%;height:100%}
+
+/* Identity editing has one attached affordance and a generous, centred hit area. */
+.editor-identity{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:18px;margin:16px 0 24px}
+.identity-title{min-width:0}.identity-title .label{font-size:13px;margin:0 0 7px}
+.identity-title .title-input{width:100%;min-width:0;font-size:24px;line-height:1.35;padding:6px 0 10px;margin:0}
+.identity-title .meta-row{margin:4px 0 0;font-size:11px}
+.identity-look{position:relative;width:64px;height:64px;padding:0;border:0;background:transparent;border-radius:18px;display:grid;place-items:center}
+.identity-look .appearance-sample{display:grid;place-items:center;width:64px;height:64px;border:1px solid #39273e20;border-radius:18px;padding:12px}
+.identity-look .visual-symbol{display:grid;place-items:center;width:100%;height:100%}
+.identity-look svg{display:block;width:100%;height:100%}
+.edit-badge,.cover-camera{box-sizing:border-box;display:grid;place-items:center;padding:0;line-height:1;background:#ffb100;color:#fff;border:3px solid var(--surface-page);border-radius:50%}
+.edit-badge{position:absolute;right:-7px;bottom:-7px;width:28px;height:28px}
+.edit-badge svg,.cover-camera svg{display:block;width:14px;height:14px;margin:0;flex:none}
+.cover-camera{width:32px;height:32px;right:-6px;bottom:-6px;min-width:0;min-height:0}
+.cover-camera:before{content:'';position:absolute;inset:-6px;border-radius:50%}
+.profile-photo>i{display:grid;place-items:center;line-height:1;padding:0}.profile-photo>i>svg{display:block;margin:0}
+.library-toolbar{gap:8px;align-items:center;margin:16px 0 22px}.library-toolbar .library-tabs{margin:0;gap:6px;flex:1}
+.library-toolbar .tag-filter{margin:0;min-height:44px;white-space:nowrap;padding:6px 0 6px 8px;font-size:12px}
+.library-filter-group{border:0;margin:0 0 22px;padding:0}.library-filter-group legend{font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+.library-filter-group>button{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:46px;font-size:16px;text-align:left;padding:10px 0;color:var(--text-primary)}
+.library-filter-group svg{width:18px;height:18px;color:#bd7900}
+.ritual-actions{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:10px;margin:16px 0 26px}
+.product-content .ritual-actions>.secondary{margin:0;min-height:52px;padding:10px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;line-height:1.35;border-radius:14px}
+.ritual-actions svg{width:18px;height:18px;flex:none}.schedule-summary span{min-width:0;text-align:left;overflow-wrap:anywhere}
+.schedule-tabs{margin:0 0 20px}.schedule-date{display:block;margin:0 0 18px}.schedule-date .field-input{margin-top:8px;width:100%;min-width:0}
+.scheduled-dates{margin-top:22px;border-top:1px solid var(--border-subtle);padding-top:18px}.scheduled-dates h3{font-size:13px;color:var(--text-secondary);margin-bottom:5px}
+.scheduled-dates button{display:flex;justify-content:space-between;align-items:center;min-height:44px;width:100%;padding:8px 0;font-size:14px}.scheduled-dates svg{width:16px;height:16px}
+.calendar-heading{justify-content:space-between}.calendar-today{min-height:44px;padding:8px 0 8px 12px;font-size:14px;color:var(--text-primary)}
+.calendar-window{touch-action:pan-y;user-select:none;position:relative}
+/* Keep the sheet anchored; only its grip can move it. Prevent scroll chaining. */
+html:has(#appearance-dialog[open]),body:has(#appearance-dialog[open]){overflow:hidden;overscroll-behavior:none}
+#appearance-dialog.bottom-sheet{box-sizing:border-box;position:fixed;inset:auto 0 0;margin:0 auto;width:min(100%,480px);max-height:calc(100dvh - 12px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;overflow-anchor:none;touch-action:pan-y;padding:12px 24px max(20px,env(safe-area-inset-bottom));animation:none}
+#appearance-dialog::before{display:none}
+#appearance-dialog .sheet-grip{height:20px;width:100%;display:grid;place-items:center;touch-action:none}
+#appearance-dialog .sheet-grip::after{content:'';width:36px;height:4px;border-radius:4px;background:var(--border-subtle)}
+#appearance-dialog .dialog-head{margin:8px 0 14px;touch-action:pan-y;cursor:default}
+#appearance-dialog .look-preview{overflow:hidden;margin:8px 0 12px;background:transparent}
+#appearance-dialog .look-preview>span:not(.visual-symbol){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#appearance-dialog .look-tabs{margin:0 0 14px}
+@media(max-width:360px){.editor-identity{grid-template-columns:56px minmax(0,1fr);gap:14px}.identity-look,.identity-look .appearance-sample{width:56px;height:56px}.identity-title .title-input{font-size:21px}.library-toolbar .filter-tabs>button{font-size:12px;padding:8px}.library-toolbar .filter-tabs small{font-size:10px}.ritual-actions{gap:8px}.product-content .ritual-actions>.secondary{font-size:12px;padding:8px}.ritual-actions svg{width:16px;height:16px}}
+
+/* Shared filter fields use the established Discover sheet. */
+#shared-filter-form .filter-field{display:block;margin:20px 0 10px}
+#shared-filter-form .filter-field:first-child{margin-top:8px}
+#shared-filter-form select{width:100%;min-height:52px;border-radius:14px;padding:12px 14px;font-size:16px}
+#shared-filter-form>.primary{margin-top:24px}
+.selection-circle{display:grid;place-items:center;flex:0 0 22px;width:22px;min-width:22px;max-width:22px;height:22px;min-height:22px;max-height:22px;box-sizing:border-box;aspect-ratio:1;border:1px solid var(--border-subtle);border-radius:50%;margin-left:auto}
+.selection-circle.selected{background:#ffb100;border-color:#ffb100}
+.selection-circle.selected::after{content:'';width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
+.buddy-option button>.selection-circle{flex:0 0 22px}
+#plan-options .library-block{gap:14px}#plan-options .library-block>span:not(.selection-circle){flex:1;min-width:0}
+#plan-options .library-block>.selection-circle{flex:0 0 22px;width:22px;min-width:22px;max-width:22px;height:22px}
+.compact-title{white-space:nowrap;min-height:0!important;height:48px;line-height:1.3;box-sizing:border-box}
+.identity-title .title-input{height:48px;padding:4px 0;border-radius:0;background:transparent;box-shadow:none;font-size:20px;border:0;border-bottom:1px solid var(--border-subtle)}
+#ritual-title.compact-title{height:48px;padding:10px 14px;min-height:0}
+.filter-choice{border:0;padding:0;margin:8px 0 24px;min-width:0}.filter-choice legend{margin-bottom:12px}.filter-choice .filter-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0}.filter-choice .filter-tabs button{padding:8px 11px}
+#profile-sheet[data-page=buddy]{padding:24px 20px;overflow-y:auto;overscroll-behavior:contain}
+.buddy-sheet-head{display:flex;align-items:center;gap:8px;margin-bottom:18px}.profile-sheet .buddy-sheet-head h1{font-size:24px;flex:1;margin:0}.buddy-sheet-head .icon-btn{flex:0 0 36px;width:36px;height:44px;padding:8px}
+#profile-sheet .buddy-options{max-height:none;overflow:visible}#profile-sheet .buddy-option .buddy-character{width:48px;height:58px;flex-basis:48px}#profile-sheet .buddy-option>button:first-child{gap:8px}#profile-sheet .buddy-option b{font-size:17px}#profile-sheet .buddy-option small{font-size:11px}#profile-sheet .buddy-option small:last-child{font-size:10px}#profile-sheet .buddy-option .round-button{width:36px;min-width:36px;height:44px;padding:9px;background:transparent}#profile-sheet .voice-availability{font-size:11px;color:var(--text-secondary);line-height:1.5;margin-top:20px}
+.playlist-copy strong{height:2.7em;min-height:2.7em;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.header-actions{display:flex;align-items:center;gap:4px;margin-left:auto}.header-manage{font-size:12px;min-height:44px;padding:8px;color:var(--text-secondary);white-space:nowrap}
+.playlist-card{position:relative}.playlist-card.is-managing .playlist-open{opacity:1;color:inherit}
+.ritual-remove{position:absolute;z-index:2;top:-9px;left:-9px;width:30px;height:30px;display:grid;place-items:center;padding:0;border:2px solid var(--surface-page);border-radius:50%;color:var(--text-primary);background:var(--border-subtle)}
+.ritual-remove::before{content:'';position:absolute;inset:-7px}.ritual-remove svg{width:16px;height:16px}
+.playlist-open{-webkit-touch-callout:none;user-select:none}.playlist-open img{pointer-events:none}
+.playlist-card.is-managing{animation:manage-arrive .18s ease-out}@keyframes manage-arrive{from{transform:scale(.98)}to{transform:none}}
+/* Real scroll positions with native momentum and snap, shared by both planning modes. */
+.time-wheel{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:220px;margin:4px 0 12px;isolation:isolate;font-variant-numeric:tabular-nums;gap:6px}
+.time-wheel-highlight{position:absolute;inset:88px 8px;border-radius:14px;background:var(--surface-input);z-index:-1;pointer-events:none}
+.time-wheel-column{height:220px;width:76px;padding:88px 0;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;scrollbar-width:none;touch-action:pan-y;user-select:none;cursor:ns-resize;mask-image:linear-gradient(transparent,#000 28%,#000 72%,transparent)}
+.time-wheel-column::-webkit-scrollbar{display:none}.time-wheel-column:focus-visible{outline:2px solid #ffb100;outline-offset:0;border-radius:12px}
+.time-wheel-column[data-wheel=period]{width:58px}.time-wheel-option{height:44px;min-height:44px;display:grid;place-items:center;scroll-snap-align:center;scroll-snap-stop:normal;line-height:1;font-size:29px;color:var(--text-secondary)}
+.time-wheel-option.is-selected{color:var(--text-primary);font-weight:600}.time-wheel-colon{font-size:25px;line-height:1;color:var(--text-primary)}
+.time-wheel-column[data-wheel=period] .time-wheel-option{font-size:19px}
+#product-modal :is(#alarm-form,#date-plan-form) .weekdays,#product-modal .schedule-date{height:82px;min-height:82px;margin:0 0 14px;box-sizing:border-box}
+#product-modal .weekdays{display:flex;align-items:center;justify-content:space-between;gap:4px}
+#product-modal .weekdays label{flex:1;max-width:42px}
+#product-modal .weekdays span{background:var(--surface-input);color:var(--text-primary);border-color:var(--border-subtle)}
+#product-modal .weekdays input:checked+span{background:var(--button-bg);color:var(--button-text);border-color:var(--button-bg)}
+#product-modal .schedule-date{font-size:12px;color:var(--text-secondary);display:flex;flex-direction:column;justify-content:center;gap:6px}
+#product-modal .schedule-date input{margin:0;height:48px;min-height:48px;padding:8px 12px}
+#product-modal :is(#alarm-form,#date-plan-form) .tone-setting{margin:0 0 18px;padding:14px 0;min-height:58px}
+#product-modal :is(#alarm-form,#date-plan-form)>.primary{margin-top:12px}
+.calendar-window{overflow:hidden}.calendar-track{position:relative;width:100%;height:100%;will-change:transform}
+.calendar-page{position:relative;width:100%;height:100%;overflow:hidden}.calendar-preview{position:absolute;top:0;pointer-events:none}
+.calendar-preview .month-grid{transition:none!important}
+.swipe-item,.day-agenda .swipe-item{--swipe-distance:80px;border-radius:16px;background:var(--surface-page);border:0}
+.swipe-item.is-open .swipe-content{transform:translateX(var(--swipe-x,-80px))}
+.swipe-delete{width:72px;border-radius:16px;inset:0 0 0 auto;padding:0}
+.tomorrow-plan .swipe-content>.next-ritual{padding:14px 16px 14px 0;box-sizing:border-box}
+.tomorrow-plan .swipe-item{margin:4px 0 12px}.day-agenda .swipe-item{margin-bottom:12px}
+.swipe-content>.library-block{padding-right:16px}
+@media(prefers-reduced-motion:reduce){.playlist-card.is-managing{animation:none}}
