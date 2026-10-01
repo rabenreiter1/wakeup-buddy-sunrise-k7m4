@@ -1,0 +1,44 @@
+/* Sharp raster face parts on a fixed felt body. No masking or skin overlays. */
+.buddy-bitmap{--eye-left:35.6%;--eye-right:62.8%;--eye-y:47.7%;--eye-size:6.8%;--mouth-x:49%;--mouth-y:53.7%;--mouth-width:12%;--mouth-height:6.3%;--blink-duration:7.4s;--gaze-duration:17s;--face-delay:0s;--gaze-distance:.7%;display:inline-grid;place-items:center}
+.buddy-kumo{--eye-left:37.5%;--eye-right:61.3%;--eye-y:52.7%;--eye-size:5.8%;--mouth-x:49%;--mouth-y:57.6%;--mouth-width:10.5%;--mouth-height:5.6%;--blink-duration:8.1s;--face-delay:-1.2s}
+.buddy-pip{--eye-left:41.5%;--eye-right:55.4%;--eye-y:44.8%;--eye-size:3.8%;--mouth-x:48.4%;--mouth-y:48.5%;--mouth-width:7.5%;--mouth-height:3.8%;--blink-duration:6.8s;--gaze-duration:14s;--gaze-distance:.4%;--face-delay:-3.1s}
+.buddy-nova{--eye-left:37.1%;--eye-right:61.3%;--eye-y:47.5%;--eye-size:6.5%;--mouth-x:49.1%;--mouth-y:52.9%;--mouth-width:11.2%;--mouth-height:6%;--blink-duration:7.9s;--face-delay:-2.2s}
+.buddy-momo{--eye-left:34.6%;--eye-right:62%;--eye-y:62.7%;--eye-size:7.2%;--mouth-x:48.4%;--mouth-y:68%;--mouth-width:12.2%;--mouth-height:6.5%;--blink-duration:9.3s;--gaze-duration:21s;--face-delay:-4s}
+.buddy-nori{--eye-left:34.5%;--eye-right:63.2%;--eye-y:55.7%;--eye-size:7.8%;--mouth-x:49.3%;--mouth-y:60.8%;--mouth-width:13%;--mouth-height:6.8%;--blink-duration:8.7s;--face-delay:-1.8s}
+.buddy-bitmap .buddy-body{position:relative;width:100%;height:auto;aspect-ratio:1}
+.buddy-bitmap .buddy-portrait{animation:none!important;opacity:1}
+.buddy-face-base{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;opacity:0}
+.felt-eye-pair{position:absolute;inset:0;pointer-events:none;opacity:0;animation:felt-gaze var(--gaze-duration) ease-in-out var(--face-delay) infinite}
+.felt-eye{position:absolute;top:var(--eye-y);width:var(--eye-size);height:var(--eye-size);transform:translate(-50%,-50%)}
+.eye-left{left:var(--eye-left)}.eye-right{left:var(--eye-right)}
+.felt-mouth{position:absolute;left:var(--mouth-x);top:var(--mouth-y);width:var(--mouth-width);height:var(--mouth-height);transform:translate(-50%,-50%);pointer-events:none;opacity:0}
+.buddy-bitmap .felt-face-frame{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:hidden;opacity:0;filter:none;pointer-events:none}
+.buddy-bitmap[data-face-ready=true] .buddy-portrait{opacity:0}
+.buddy-bitmap[data-face-ready=true] :is(.buddy-face-base,.felt-eye-pair,.felt-mouth){opacity:1}
+.felt-eye>.frame-open{animation:felt-eye-open var(--blink-duration) steps(1,end) var(--face-delay) infinite}
+.felt-eye>.frame-half{animation:felt-eye-half var(--blink-duration) steps(1,end) var(--face-delay) infinite}
+.felt-eye>.frame-blink{animation:felt-eye-blink var(--blink-duration) steps(1,end) var(--face-delay) infinite}
+.felt-mouth>.frame-smile{opacity:1}
+.buddy-bitmap[data-speaking=true] .felt-mouth>.frame-smile{animation:felt-mouth-smile 1.13s steps(1,end) infinite}
+.buddy-bitmap[data-speaking=true] .felt-mouth>.frame-small{animation:felt-mouth-small 1.13s steps(1,end) infinite}
+.buddy-bitmap[data-speaking=true] .felt-mouth>.frame-wide{animation:felt-mouth-wide 1.13s steps(1,end) infinite}
+.buddy-bitmap[data-speaking=true] .felt-mouth>.frame-round{animation:felt-mouth-round 1.13s steps(1,end) infinite}
+.buddy-bitmap[data-speaking=true][data-phoneme] .felt-mouth>.felt-face-frame{animation:none;opacity:0}
+.buddy-bitmap[data-speaking=true][data-phoneme=small] .felt-mouth>.frame-small,.buddy-bitmap[data-speaking=true][data-phoneme=wide] .felt-mouth>.frame-wide,.buddy-bitmap[data-speaking=true][data-phoneme=round] .felt-mouth>.frame-round{opacity:1}
+/* Explicit poses also support reproducible visual checks. */
+.buddy-bitmap[data-eye-state] .felt-eye>.felt-face-frame{animation:none;opacity:0}
+.buddy-bitmap[data-eye-state=open] .felt-eye>.frame-open,.buddy-bitmap[data-eye-state=half] .felt-eye>.frame-half,.buddy-bitmap[data-eye-state=blink] .felt-eye>.frame-blink{opacity:1}
+@keyframes felt-eye-open{0%,43%,88%,100%{opacity:1}40%,85%{opacity:0}}
+@keyframes felt-eye-half{0%,41%,43%,86%,88%,100%{opacity:0}40%,42%,85%,87%{opacity:1}}
+@keyframes felt-eye-blink{0%,42%,87%,100%{opacity:0}41%,86%{opacity:1}}
+@keyframes felt-gaze{0%,16%,40%,57%,82%,100%{transform:translate(0,0)}19%,33%{transform:translate(var(--gaze-distance),-.3%)}60%,75%{transform:translate(calc(var(--gaze-distance) * -1),.2%)}}
+@keyframes felt-mouth-smile{0%,7%,30%,43%,64%,83%,100%{opacity:0}26%,79%{opacity:1}}
+@keyframes felt-mouth-small{0%,30%,64%,83%,100%{opacity:1}7%,26%,43%,72%,79%{opacity:0}}
+@keyframes felt-mouth-wide{0%,26%,64%,79%,83%,100%{opacity:0}7%,43%{opacity:1}}
+@keyframes felt-mouth-round{0%,7%,26%,30%,43%,79%,83%,100%{opacity:0}72%{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+ .buddy-bitmap .buddy-body,.buddy-bitmap .felt-eye-pair,.buddy-bitmap .felt-face-frame{animation:none!important}
+ .buddy-bitmap .felt-eye-pair{transform:none}
+ .buddy-bitmap .felt-eye>.felt-face-frame,.buddy-bitmap .felt-mouth>.felt-face-frame{opacity:0!important}
+ .buddy-bitmap .felt-eye>.frame-open,.buddy-bitmap .felt-mouth>.frame-smile{opacity:1!important}
+}
