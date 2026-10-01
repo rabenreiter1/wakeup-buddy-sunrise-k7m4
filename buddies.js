@@ -23,6 +23,21 @@ export function setBuddySpeaking(root,active){
  if(!root)return;const buddies=root.matches?.('.buddy-character')?[root]:root.querySelectorAll('.buddy-character');
  for(const buddy of buddies){const value=active&&!matchMedia('(prefers-reduced-motion: reduce)').matches?'true':'false';if(buddy.dataset.speaking!==value)buddy.dataset.speaking=value;if(!active)delete buddy.dataset.phoneme;}
 }
+const reactions=new WeakMap();
+export function reactToBuddy(root){
+ const buddy=root?.matches?.('.buddy-character')?root:root?.querySelector('.buddy-character');if(!buddy)return;
+ for(const timer of reactions.get(buddy)||[])clearTimeout(timer);
+ delete buddy.dataset.reacting;delete buddy.dataset.eyeState;
+ void buddy.offsetWidth; // Restart a repeated tap, without stacking animations.
+ buddy.dataset.reacting='true';
+ const timers=[];
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  buddy.dataset.eyeState='half';
+  timers.push(setTimeout(()=>buddy.dataset.eyeState='blink',70),setTimeout(()=>buddy.dataset.eyeState='open',170));
+ }
+ timers.push(setTimeout(()=>{delete buddy.dataset.reacting;delete buddy.dataset.eyeState;reactions.delete(buddy);},850));
+ reactions.set(buddy,timers);
+}
 const mouthTimers=new WeakMap();
 export function buddySpeechBoundary(root,word=''){
  const buddy=root?.matches?.('.buddy-character')?root:root?.querySelector('.buddy-character');if(!buddy||buddy.dataset.speaking!=='true')return;

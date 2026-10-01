@@ -76,9 +76,12 @@ entries.push(
 const dictionary=new Map(entries.map(([de,en,fr])=>[de,{en,fr}]));
 dictionary.set('Baustein aus Ritual entfernt.',{en:'Block removed from ritual.',fr:'Bloc retiré du rituel.'});
 dictionary.set('Datum wählen',{en:'Choose date',fr:'Choisir une date'});
+dictionary.set('Gib deinem Baustein einen Titel.',{en:'Give your block a title.',fr:'Donnez un titre à votre bloc.'});
 export function t(text){
  if(preferences.language==='de')return text;const lang=preferences.language,trim=text.trim(),direct=dictionary.get(trim)?.[lang];
  if(direct)return text.replace(trim,direct);
+ if(trim.endsWith(' begrüßen'))return text.replace(trim,lang==='en'?'Say hello to '+trim.slice(0,-9):'Dire bonjour à '+trim.slice(0,-9));
+ if(trim.endsWith(' freut sich, dich zu sehen.'))return text.replace(' freut sich, dich zu sehen.',lang==='en'?' is happy to see you.':' est heureux de vous voir.');
  if(trim.endsWith(' aus Ritual entfernen'))return text.replace(' aus Ritual entfernen',lang==='en'?' — remove from ritual':' — retirer du rituel');
  if(trim.includes(' · '))return text.split(' · ').map(part=>t(part)).join(' · ');
  if(trim.startsWith('Von '))return text.replace('Von ',lang==='en'?'By ':'Par ');

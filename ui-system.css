@@ -218,3 +218,24 @@ html .ritual-track .drag-handle{margin:0;min-width:24px;width:24px;flex:0 0 24px
 html .drag-ghost.ritual-track{border:0!important;overflow:hidden;background:var(--surface-page)}
 .drag-ghost .swipe-delete{display:none}.drag-ghost .swipe-content{transform:none!important}
 html .drag-ghost .ritual-track-content{height:100%;border:0}
+
+/* Selection with a separate preview uses the same layout in both sheets. */
+html :is(#profile-sheet,#product-modal) .choice-preview-row{display:flex;align-items:center;gap:8px;padding:8px 0;border:0;border-bottom:1px solid var(--border-subtle);background:transparent}
+html :is(#profile-sheet,#product-modal) .choice-preview-row>button:first-child{display:flex;align-items:center;gap:8px;flex:1;min-width:0;min-height:60px;padding:6px 0;text-align:left;color:var(--text-primary)}
+.choice-preview-row .choice-copy{flex:1;min-width:0}.choice-preview-row .choice-copy b{display:block;font-size:17px;font-weight:600;line-height:1.35}
+.choice-preview-row .choice-art{display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;background:var(--surface-input);color:var(--text-secondary);border-radius:14px}.choice-art>svg{width:22px;height:22px}
+.choice-preview-row .selection-circle{flex:0 0 22px}
+html :is(#profile-sheet,#product-modal) .choice-preview-row>.round-button{width:36px;min-width:36px;height:44px;padding:9px;background:transparent;color:var(--text-secondary)}
+html :is(#profile-sheet,#product-modal) .choice-preview-row>.round-button[aria-pressed=true]{color:var(--text-primary)}
+.choice-preview-row>.round-button>svg{width:18px;height:18px}
+/* The third, empty count row is now part of the ritual artwork. */
+html .calendar-window .month-grid .month-day{grid-template-rows:20px 30px;gap:2px;padding:1px 0}
+html .calendar-status{width:30px;height:30px}
+html .calendar-status .calendar-symbol,html .calendar-symbol .visual-symbol{width:30px;height:30px}
+html .calendar-status>svg{width:24px;height:24px}
+/* Solid form surfaces share rounded edges, including the sticky action panel. */
+html #app .actions{border-radius:20px;padding:12px 12px max(12px,env(safe-area-inset-bottom));background:var(--surface-page)}
+html :is(.field-input,select.field-input){border-radius:14px}
+html #appearance-dialog .look-preview{border-radius:18px}
+html .welcome-friend{padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;touch-action:manipulation}
+.welcome-friend:focus-visible{outline:2px solid var(--brand);outline-offset:4px}

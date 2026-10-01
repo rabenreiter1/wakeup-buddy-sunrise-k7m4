@@ -3,7 +3,7 @@ import {filterContent,selectionCircle,timeWheel,attachTimeWheels} from './ui-con
 import {MAX_BLOCKS,isOwnRoutine} from './limits.js';
 import {setAppearance} from './theme.js';
 import {cropPhoto} from './crop.js';
-import { BUDDIES,buddyArt,selectedBuddy,selectBuddy,previewBuddy,stopBuddyPreview } from './buddies.js';
+import { BUDDIES,buddyArt,selectedBuddy,selectBuddy,previewBuddy,stopBuddyPreview,reactToBuddy } from './buddies.js';
 import { localPhoto } from './media.js';
 import { setPreferences,clockLabel,locale,translateUI } from './i18n.js';
 import { setupSheets, confirmSheet, animateScreen, animateResize, refreshSheet } from './sheets.js';
@@ -117,7 +117,7 @@ function calendarCells(reference){const days=calendarExpanded?monthDays(referenc
   const key=dayKey(d),p=plansFor(data,key),status=dayStatus(data,key);
   const label={done:'Abgeschlossen',partial:'Teilweise durchgeführt',skipped:'Ausgelassen',planned:'Geplant',empty:'Keine Rituale'}[status];
   const marker=status==='done'?icon('check'):status==='partial'?icon('clock'):status==='skipped'?icon('minus'):p.length?'<span class="calendar-symbol">'+symbol(p[0].ritual)+'</span>':'';
-  return '<button data-day="'+key+'" data-status="'+status+'" class="month-day '+(d.getMonth()!==month?'outside ':'')+(status==='done'?'completed ':status==='partial'?'partial ':'')+'" aria-label="'+d.toLocaleDateString(locale(),{weekday:'long',day:'numeric',month:'long'})+' · '+label+(p.length?' · '+p.length+' Rituale':'')+'" aria-pressed="'+(key===reference)+'" '+(key===dayKey()?'aria-current="date"':'')+'><b>'+d.getDate()+'</b><span class="calendar-status" aria-hidden="true">'+marker+'</span><span class="calendar-count" aria-hidden="true">'+(p.length>1?p.length:'')+'</span></button>';
+  return '<button data-day="'+key+'" data-status="'+status+'" class="month-day '+(d.getMonth()!==month?'outside ':'')+(status==='done'?'completed ':status==='partial'?'partial ':'')+'" aria-label="'+d.toLocaleDateString(locale(),{weekday:'long',day:'numeric',month:'long'})+' · '+label+(p.length?' · '+p.length+' Rituale':'')+'" aria-pressed="'+(key===reference)+'" '+(key===dayKey()?'aria-current="date"':'')+'><b>'+d.getDate()+'</b><span class="calendar-status" aria-hidden="true">'+marker+'</span></button>';
  }).join('');
 }
 function weekView(){
@@ -136,7 +136,7 @@ function homeView(){
  const state=morningState(data),r=state.ritual,date=new Date();date.setDate(date.getDate()+1);
  const tomorrow=dayKey(date),plans=plansFor(data,tomorrow);
  const today=['resume','missed'].includes(state.kind)?'<section class="today-reminder"><span><small>Heute</small><strong data-user-content>'+esc(r.title)+'</strong></span><button class="start-ritual home-start" data-p="start-morning">'+icon(state.kind==='resume'?'play':'sun')+(state.kind==='resume'?'Fortsetzen':'Los geht’s')+'</button></section>':state.kind==='done'?'<p class="morning-complete">'+icon('check')+' Dein heutiges Ritual ist durchgeführt.</p>':'';
- return planningNotice()+'<section class="morning-welcome"><span class="eyebrow">DEIN MOMENT AM MORGEN</span><h1>Heute beginnt<br>mit <em>dir.</em></h1><div class="welcome-friend" aria-hidden="true">'+buddyArt()+'</div></section>'+today+'<section class="next-morning tomorrow-plan"><div class="section-heading"><div><h2>Morgen</h2><p>'+date.toLocaleDateString(locale(),{weekday:'long',day:'numeric',month:'short'})+'</p></div><button class="icon-btn" data-route="plan" aria-label="Kalender öffnen">'+icon('calendar')+'</button></div>'+plans.map(plan=>swipeItem('<button class="next-ritual" data-home-plan="'+esc(planKey(plan))+'">'+cover(plan.ritual,true)+'<span><strong data-user-content>'+esc(plan.ritual.title)+'</strong><small>'+plan.ritual.blocks.length+' Bausteine · '+itemMinutes(plan.ritual)+' Min.</small></span><time class="wake-time">'+clockLabel(plan.time)+'</time></button>','plan',planKey(plan))).join('')+(!plans.length?'<p class="tomorrow-empty">Noch kein Ritual geplant.</p><button class="secondary" data-p="plan-tomorrow">'+icon('plus')+' Ritual für morgen auswählen</button>':'')+'</section><div class="home-history"><button class="section-link" data-route="history">'+icon('history')+' Verlauf ansehen</button></div><div class="section-heading"><h2>Deine Rituale</h2><button class="section-link" data-route="library">Alle ansehen</button></div><div class="playlist-grid">'+data.rituals.slice(0,6).map(ritualCard).join('')+'</div>';
+ return planningNotice()+'<section class="morning-welcome"><span class="eyebrow">DEIN MOMENT AM MORGEN</span><h1>Heute beginnt<br>mit <em>dir.</em></h1><button type="button" class="welcome-friend" data-p="buddy-react" aria-label="'+selectedBuddy().name+' begrüßen">'+buddyArt()+'</button></section>'+today+'<section class="next-morning tomorrow-plan"><div class="section-heading"><div><h2>Morgen</h2><p>'+date.toLocaleDateString(locale(),{weekday:'long',day:'numeric',month:'short'})+'</p></div><button class="icon-btn" data-route="plan" aria-label="Kalender öffnen">'+icon('calendar')+'</button></div>'+plans.map(plan=>swipeItem('<button class="next-ritual" data-home-plan="'+esc(planKey(plan))+'">'+cover(plan.ritual,true)+'<span><strong data-user-content>'+esc(plan.ritual.title)+'</strong><small>'+plan.ritual.blocks.length+' Bausteine · '+itemMinutes(plan.ritual)+' Min.</small></span><time class="wake-time">'+clockLabel(plan.time)+'</time></button>','plan',planKey(plan))).join('')+(!plans.length?'<p class="tomorrow-empty">Noch kein Ritual geplant.</p><button class="secondary" data-p="plan-tomorrow">'+icon('plus')+' Ritual für morgen auswählen</button>':'')+'</section><div class="home-history"><button class="section-link" data-route="history">'+icon('history')+' Verlauf ansehen</button></div><div class="section-heading"><h2>Deine Rituale</h2><button class="section-link" data-route="library">Alle ansehen</button></div><div class="playlist-grid">'+data.rituals.slice(0,6).map(ritualCard).join('')+'</div>';
 }
 function catalogCard(item){return '<article class="catalog-card"><button data-catalog="'+item.id+'">'+cover(item,true)+'<span class="catalog-copy"><small>Baustein · '+esc(item.author)+'</small><b>'+esc(item.title)+'</b><span>'+itemMinutes(item)+' Min.</span></span></button>'+catalogAction(item)+'</article>';}
 function discoverView() {
@@ -300,9 +300,13 @@ function updateWeeklyConflict(){
  button.textContent=conflicts.length?'Wochentage übernehmen':!days.length&&r.alarm?.enabled?'Wochenplan aufheben':'Speichern';button.disabled=!days.length&&!r.alarm?.enabled;translateUI(form);
 }
 modal.addEventListener('change',e=>{if(e.target.closest('#alarm-form'))updateWeeklyConflict();if(e.target.closest('#date-plan-form'))updateDateConflict();});
-function alarmSoundPicker(){
- dialog('Weckton','<div class="music-tracks">'+TRACKS.filter(t=>t.id!=='none').map(t=>'<div class="music-track"><button data-alarm-tone="'+t.id+'" aria-pressed="'+(modal._alarmDraft.tone===t.id)+'">'+icon(modal._alarmDraft.tone===t.id?'check':'audio')+'<span><b>'+t.title+'</b></span></button><button class="round-button" data-alarm-preview="'+t.id+'" aria-pressed="'+(alarmPreview===t.id)+'" aria-label="'+t.title+(alarmPreview===t.id?' stoppen':' anhören')+'">'+icon(alarmPreview===t.id?'stop':'play')+'</button></div>').join('')+'</div>','alarm-sounds');modal.querySelector('.dialog-head').insertAdjacentHTML('afterbegin','<button class="icon-btn" data-m="alarm-sounds-back" aria-label="Zurück zur Planung">'+icon('back')+'</button>');
+function updateAlarmPreview(){
+ modal.querySelectorAll('[data-alarm-preview]').forEach(button=>{const playing=alarmPreview===button.dataset.alarmPreview,t=TRACKS.find(t=>t.id===button.dataset.alarmPreview);button.setAttribute('aria-pressed',String(playing));button.setAttribute('aria-label',t.title+(playing?' stoppen':' anhören'));button.innerHTML=icon(playing?'stop':'play');});translateUI(modal);
 }
+function alarmSoundPicker(){
+ dialog('Weckton','<div class="sound-options">'+TRACKS.filter(t=>t.id!=='none').map(t=>'<div class="choice-preview-row sound-option"><button data-alarm-tone="'+t.id+'" aria-pressed="'+(modal._alarmDraft.tone===t.id)+'"><span class="choice-art" aria-hidden="true">'+icon('audio')+'</span><span class="choice-copy"><b>'+t.title+'</b></span>'+selectionCircle(modal._alarmDraft.tone===t.id)+'</button><button class="round-button" data-alarm-preview="'+t.id+'" aria-pressed="false" aria-label="'+t.title+' anhören">'+icon('play')+'</button></div>').join('')+'</div>','alarm-sounds');modal.querySelector('.dialog-head').insertAdjacentHTML('afterbegin','<button class="icon-btn" data-m="alarm-sounds-back" aria-label="Zurück zur Planung">'+icon('back')+'</button>');updateAlarmPreview();
+}
+
 function editRitual(r = freshRitual(), creating = !r.title && !data.rituals.some(x=>x.id===r.id)) {
   if(!isOwnRoutine(r)){routineOptions(r);return;}
   r=structuredClone(r);r.ownership='own';
@@ -417,6 +421,7 @@ root.addEventListener('click', async event => {
     if(d.planEdit){const p=plansFor(data,selectedDay).find(p=>(p.oneOff?p.id:p.ritual.id)===d.planEdit);if(p)planDialog(p);return;}
     if(d.p==='manage-rituals'){managingRituals=!managingRituals;render();return;}
     if(d.p==='back'){goBack();return;}
+    if(d.p==='buddy-react'){reactToBuddy(button);announce(selectedBuddy().name+' freut sich, dich zu sehen.');return;}
     if(d.p==='start-morning'){const state=morningState(data);if(['resume','missed'].includes(state.kind))await beginRun(state.ritual,state.plan);return;}
     if(d.routineOptions){routineOptions(data.rituals.find(r=>r.id===d.routineOptions));return;}
     if(d.p==='routine-options'){const local=libraryItem(selectedItem);if(local)editRitual(local);return;}
@@ -533,7 +538,7 @@ modal.addEventListener('click',async event=>{
     
     if(d.m==='alarm-sounds'){const values=new FormData($('#alarm-form'));modal._alarmDraft={...modal._alarmDraft,time:String(values.get('time')),enabled:values.getAll('days').length>0,days:values.getAll('days').map(Number)};alarmSoundPicker();return;}
     if(d.m==='plan-sounds'){const values=new FormData($('#date-plan-form'));modal._planBase={...modal._planBase,date:String(values.get('date')),time:String(values.get('time')),ritualId:String(values.get('ritual'))};modal._alarmDraft={tone:String(values.get('tone'))};modal._alarmSoundContext='date-plan';alarmSoundPicker();return;}
-    if(d.alarmPreview){const id=d.alarmPreview;stopAlarmPreview();alarmPreview=alarmPreview===id?null:id;if(alarmPreview)auditionAlarm(id,()=>{alarmPreview=null;if(modal.open&&modalMode==='alarm-sounds')alarmSoundPicker();});alarmSoundPicker();return;}
+    if(d.alarmPreview){const id=d.alarmPreview;stopAlarmPreview();alarmPreview=alarmPreview===id?null:id;if(alarmPreview)auditionAlarm(id,()=>{alarmPreview=null;if(modal.open&&modalMode==='alarm-sounds')updateAlarmPreview();});updateAlarmPreview();return;}
     if(d.alarmTone||d.m==='alarm-sounds-back'){if(d.alarmTone)modal._alarmDraft.tone=d.alarmTone;alarmPreview=null;stopAlarmPreview();if(modal._alarmSoundContext==='date-plan')planDialog({...modal._planBase,tone:modal._alarmDraft.tone});else alarmDialog(modal._alarmRitual,modal._alarmDraft);return;}
     if(d.m==='change-cover'){modal.close();$('#ritual-cover-file').click();return;}
     if(d.m==='auto-cover'){const r=ritualNow();delete r.coverPhoto;markCustomized(r);await persistProduct();modal.close();render();return;}
@@ -626,7 +631,7 @@ sheet.addEventListener('click',async event=>{
  const button=event.target.closest('[data-buddy-choose],[data-buddy-preview]');if(!button)return;
  if(button.dataset.buddyPreview){const id=button.dataset.buddyPreview,was=sheet._buddyPreview===id;stopBuddyPreview();sheet._buddyPreview=was?null:id;updateBuddySelection();if(!was)previewBuddy(id,()=>{sheet._buddyPreview=null;if(sheet.open&&sheet.dataset.page==='buddy')updateBuddySelection();});return;}
  if(sheet._savingBuddy)return;sheet._savingBuddy=true;const previous=data.profile.buddy;
- try{stopBuddyPreview();sheet._buddyPreview=null;data.profile.buddy=button.dataset.buddyChoose;await persistProduct();selectBuddy(data.profile.buddy);updateBuddySelection();const friend=root.querySelector('.welcome-friend');if(friend)friend.innerHTML=buddyArt();}
+ try{stopBuddyPreview();sheet._buddyPreview=null;data.profile.buddy=button.dataset.buddyChoose;await persistProduct();selectBuddy(data.profile.buddy);updateBuddySelection();reactToBuddy(button);const friend=root.querySelector('.welcome-friend');if(friend){friend.innerHTML=buddyArt();friend.setAttribute('aria-label',selectedBuddy().name+' begrüßen');}}
  catch{data.profile.buddy=previous;sheet.querySelector('#buddy-status').textContent='Buddy konnte nicht gespeichert werden. Bitte erneut versuchen.';}
  finally{sheet._savingBuddy=false;}
 });
@@ -645,7 +650,7 @@ function updateBuddySelection(){
 }
 function buddyDialog(){
  const scroll=sheet.dataset.page==='buddy'?sheet.scrollTop:0;sheet.dataset.page='buddy';
- sheet.innerHTML='<div class="buddy-sheet-head"><button class="icon-btn" data-sheet="profile" aria-label="Zurück zum Profil">'+icon('back')+'</button><h1>Dein Buddy</h1><button class="icon-btn" data-sheet="close" aria-label="Schließen">'+icon('close')+'</button></div><div class="buddy-options">'+BUDDIES.map(b=>'<div class="buddy-option '+(sheet._buddyPreview===b.id?'previewing':'')+'"><button data-buddy-choose="'+b.id+'" aria-pressed="'+(selectedBuddy().id===b.id)+'">'+buddyArt(b.id)+'<span><b>'+b.name+'</b><small>'+b.trait+'</small><small>'+b.gender+'e Stimme</small></span>'+selectionCircle(selectedBuddy().id===b.id)+'</button><button class="round-button" data-buddy-preview="'+b.id+'" aria-pressed="'+(sheet._buddyPreview===b.id)+'" aria-label="'+b.name+' anhören">'+icon(sheet._buddyPreview===b.id?'stop':'play')+'</button></div>').join('')+'</div><p class="voice-availability">Hörproben nutzen verfügbare Systemstimmen. Je nach Browser können sich Buddies eine Grundstimme teilen.</p><p id="buddy-status" role="status"></p>';
+ sheet.innerHTML='<div class="buddy-sheet-head"><button class="icon-btn" data-sheet="profile" aria-label="Zurück zum Profil">'+icon('back')+'</button><h1>Dein Buddy</h1><button class="icon-btn" data-sheet="close" aria-label="Schließen">'+icon('close')+'</button></div><div class="buddy-options">'+BUDDIES.map(b=>'<div class="buddy-option choice-preview-row '+(sheet._buddyPreview===b.id?'previewing':'')+'"><button data-buddy-choose="'+b.id+'" aria-pressed="'+(selectedBuddy().id===b.id)+'">'+buddyArt(b.id)+'<span><b>'+b.name+'</b><small>'+b.trait+'</small><small>'+b.gender+'e Stimme</small></span>'+selectionCircle(selectedBuddy().id===b.id)+'</button><button class="round-button" data-buddy-preview="'+b.id+'" aria-pressed="'+(sheet._buddyPreview===b.id)+'" aria-label="'+b.name+' anhören">'+icon(sheet._buddyPreview===b.id?'stop':'play')+'</button></div>').join('')+'</div><p class="voice-availability">Hörproben nutzen verfügbare Systemstimmen. Je nach Browser können sich Buddies eine Grundstimme teilen.</p><p id="buddy-status" role="status"></p>';
  if(!sheet.open||sheet.dataset.closing)sheet.showModal();sheet.scrollTop=scroll;translateUI(sheet);
 }
 
