@@ -1,3 +1,4 @@
+import {enrichExperiences} from './team-experiences.js';
 export const TEAM_PUBLISHER='wakeup-buddy-team';
 export const isTeamOriginal=item=>item?.publisherId===TEAM_PUBLISHER&&!item.customized;
 const s=(text,minutes=1,input='none',timer=false,research=false)=>({message:{type:'text',text},minutes,input,timer,research});
@@ -100,6 +101,8 @@ response('meditation','*Kurz nachspüren*\n\nNimm eine kurze Sprachnotiz auf: Wa
 lookup('mobility').steps[0].message.text='Fünf langsame Schulterkreise nach hinten, im Stehen oder Sitzen. Bleibe in deinem angenehmen Bewegungsbereich. Der Buddy zählt den Beginn jeder Wiederholung; pro Kreis hast du acht Sekunden. Bei Schmerzen hörst du auf.';
 lookup('mobility').steps[1].message.text='Halte dich bei Bedarf fest. Rolle von den Fersen auf die Fußballen. Nach 30 Sekunden hebst du abwechselnd ein Knie leicht an; im Sitzen streckst du abwechselnd ein Bein. Nach 65 Sekunden rollst du wieder die Füße, nach 100 Sekunden lässt du die Bewegung ausklingen.';
 lookup('technique').steps[0].guidance.intro='Stabiler Stuhl: langsam hinsetzen und aufstehen. Hände helfen, alternativ Beine im Sitzen strecken. Bei Schmerzen stoppen.';
+export const PREVIOUS_TEAM_BLOCKS=structuredClone(CATALOG_BLOCKS);
+enrichExperiences(CATALOG_BLOCKS);
 const byId=new Map(CATALOG_BLOCKS.map(block=>[block.id,block]));
 const ritual=(slug,title,description,ids)=>({id:'wb-ritual-'+slug,sourceId:'wb-ritual-'+slug,version:1,kind:'ritual',publisherId:TEAM_PUBLISHER,author:'Wakeup Buddy Team',title,description,theme:'lilac',blocks:ids.map(id=>byId.get('wb-'+id))});
 export const CATALOG_RITUALS=[

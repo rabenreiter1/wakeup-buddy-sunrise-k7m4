@@ -2,7 +2,7 @@ import {MAX_BLOCKS,isOwnRoutine} from './limits.js';
 import {captureSchedule,migrateSingleDailyPlan,weeklyConflicts,dayHasStarted} from './planning.js';
 import { readState, writeState, readRitual, listBlocks, saveBlock, writeLibraryChange } from './storage.js';
 import { CATALOG_BLOCKS, CATALOG_RITUALS } from './demo-catalog.js';
-import { CATALOG_BLOCKS as TEAM_BLOCKS,TEAM_PUBLISHER } from './team-catalog.js';
+import { CATALOG_BLOCKS as TEAM_BLOCKS,PREVIOUS_TEAM_BLOCKS,TEAM_PUBLISHER } from './team-catalog.js';
 import { blockIdentity, defaultAlarm } from './catalog.js';
 import { restoreDraft } from './model.js';
 import { visualRecipe } from './landscape.js';
@@ -31,7 +31,20 @@ export async function loadProduct() {
   if(!data.scheduleRevisions){captureSchedule(data);await writeState('product-v3',data);}
   if(migrateSingleDailyPlan(data))await writeState('product-v3',data);
   if(!data.stocksListeningVersion)await migrateStocksListening();
+  if(!data.guidedCatalogVersion)await migrateGuidedCatalog();
   return data;
+}
+async function migrateGuidedCatalog(){
+ const previous=new Map(PREVIOUS_TEAM_BLOCKS.map(b=>[b.id,contentSignature(b)]));
+ const update=block=>{
+  const id=block.sourceId||block.id,next=TEAM_BLOCKS.find(b=>b.id===id);
+  if(!next?.contentRevision||next.contentRevision<3||block.publisherId!==TEAM_PUBLISHER||block.customized||previous.get(id)!==contentSignature(block))return block;
+  return {...block,steps:structuredClone(next.steps),contentRevision:next.contentRevision};
+ };
+ const put=[];for(const block of await listBlocks()){const revised=update(block);if(revised!==block)put.push(revised);}
+ // Recorded and in-progress runs keep their original snapshots and responses.
+ const next=structuredClone(data);next.rituals.forEach(r=>{r.blocks=r.blocks.map(update);});next.guidedCatalogVersion=1;
+ await atomicChange(next,{put});
 }
 async function migrateStocksListening(){
  const original=TEAM_BLOCKS.find(b=>b.id==='wb-stocks');
