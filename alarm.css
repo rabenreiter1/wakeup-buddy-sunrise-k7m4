@@ -1,32 +1,18 @@
-/* A visibly labelled, in-app iPhone alarm simulation; never an OS alarm. */
-body.alarm-open{overflow:hidden!important;background:#080b13}
-#alarm-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:#080b13;overflow:hidden;overscroll-behavior:none}
+/* Preserve the supplied iPhone artwork and button coordinates without cropping. */
+body.alarm-open{overflow:hidden!important;background:#000}
+#alarm-overlay{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:none;outline:none}
 #alarm-overlay[hidden]{display:none}
-#alarm-overlay .alarm-phone{position:relative;isolation:isolate;width:min(100%,480px);height:100dvh;max-height:960px;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:calc(16px + env(safe-area-inset-top)) 26px calc(30px + env(safe-area-inset-bottom));box-sizing:border-box;background:radial-gradient(ellipse at 15% 25%,#203c5b 0,transparent 60%),radial-gradient(ellipse at 95% 100%,#303c55 0,transparent 55%),#080b13;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;touch-action:pan-y;transition:opacity .3s,transform .3s}
-#alarm-overlay button{font-family:inherit;color:inherit;box-shadow:none;border:0;outline-offset:4px;-webkit-tap-highlight-color:transparent}
-#alarm-overlay .alarm-status{position:static;width:100%;display:flex;align-items:center;justify-content:space-between;color:#fffd;font-size:12px;letter-spacing:.4px;flex-shrink:0;padding:0;margin:0;background:none}
-#alarm-overlay .alarm-status button{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;background:#ffffff18}
-#alarm-overlay .alarm-status svg{width:21px;height:21px}
-.alarm-lock{margin:22px 0 12px;height:28px}.alarm-lock svg{width:24px;height:24px}
-.alarm-date{margin:0 0 2px;font-size:20px;font-weight:500;letter-spacing:-.4px;text-align:center}
-.alarm-clock{display:flex;align-items:baseline;justify-content:center;gap:7px;white-space:nowrap;line-height:1.08;font-size:clamp(76px,23vw,112px);font-weight:300;letter-spacing:-5px;font-variant-numeric:tabular-nums}
-.alarm-clock small{font-size:20px;letter-spacing:0;font-weight:500}
-.alarm-label{margin:auto 0;text-align:center;padding:20px 0;max-width:100%}
-.alarm-label>span{display:flex;align-items:center;justify-content:center;gap:7px;font-size:19px;font-weight:500}.alarm-label svg{width:21px;height:21px}
-.alarm-label h1{font-size:28px;line-height:1.25;font-weight:500;letter-spacing:-.5px;margin:12px 0 0;overflow-wrap:anywhere}
-.alarm-controls{width:min(100%,340px);display:grid;gap:18px;padding-bottom:42px;flex-shrink:0}
-#alarm-overlay .alarm-snooze{height:76px;border-radius:42px;background:#ff9f0a;color:#121212;font-size:26px;font-weight:600}
-.alarm-stop-track{position:relative;height:68px;display:grid;place-items:center;background:#ffffff1c;border-radius:40px}
-.alarm-stop-label{font-size:17px;color:#ffffffbd;padding-left:43px;pointer-events:none}
-#alarm-overlay .alarm-stop-thumb{position:absolute;left:4px;top:4px;width:60px;height:60px;border-radius:50%;background:#626774;display:grid;place-items:center;touch-action:none;transition:transform .22s cubic-bezier(.2,.8,.2,1);will-change:transform}
-#alarm-overlay .alarm-stop-thumb.dragging{transition:none}.alarm-stop-thumb svg{width:28px;height:28px}
-.alarm-home-indicator{position:absolute;bottom:calc(8px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:128px;height:5px;border-radius:4px;background:#ffffffe6}
-#alarm-overlay .alarm-notification{width:100%;margin:auto 0 16px;display:flex;align-items:center;gap:12px;text-align:left;padding:18px 14px;border-radius:24px;background:#ffffff26;backdrop-filter:blur(20px)}
-.alarm-app-icon{display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:12px;background:#ffb100;color:#fff}.alarm-app-icon svg{width:28px;height:28px}
-.alarm-notification>span:nth-child(2){display:grid;gap:5px;min-width:0}.alarm-notification small{font-size:10px;font-weight:600;letter-spacing:.6px;opacity:.7}.alarm-notification b{font-size:17px}.alarm-notification span span{font-size:13px;overflow-wrap:anywhere}.alarm-notification>svg{width:20px;flex-shrink:0;margin-left:auto}
-#alarm-overlay .alarm-unlock{margin:auto 0 40px;display:flex;align-items:center;gap:8px;justify-content:center;background:none;font-size:13px;min-height:44px}.alarm-unlock svg{width:18px}
-.alarm-pending,.alarm-snoozed{margin:auto;text-align:center}.alarm-pending>svg,.alarm-snoozed>svg{width:30px;height:30px;margin-bottom:12px}.alarm-pending p{font-size:20px}.alarm-pending small{display:block;opacity:.6;font-size:13px;margin-top:12px}.alarm-snoozed h1{font-size:28px;font-weight:500}.alarm-snoozed p{font-size:16px;line-height:1.5;margin:14px 0 24px}
-#alarm-overlay .alarm-snoozed button{display:block;min-height:48px;width:100%;margin:12px 0;border-radius:28px;background:#ffffff20;font-size:16px}
-#alarm-overlay .alarm-phone.unlocking{transform:translateY(-100%);opacity:0}
-@media(max-height:690px){.alarm-lock{margin-top:8px}.alarm-date{font-size:17px}.alarm-clock{font-size:82px}.alarm-controls{gap:12px;padding-bottom:30px}#alarm-overlay .alarm-snooze{height:64px;font-size:24px}.alarm-label h1{font-size:23px}.alarm-label{padding:12px 0}}
-@media(prefers-reduced-motion:reduce){#alarm-overlay .alarm-phone,#alarm-overlay .alarm-stop-thumb{transition:none}}
+#alarm-overlay .alarm-phone{position:relative;width:min(100vw,calc(100dvh * 946 / 2048));height:min(100dvh,calc(100vw * 2048 / 946));aspect-ratio:946 / 2048;display:block;padding:0;border:0;border-radius:0;box-shadow:none;background:#000;flex:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.alarm-reference{display:block;width:100%;height:100%;pointer-events:none;object-fit:contain}
+#alarm-overlay button{position:absolute;padding:0;margin:0;border:0;background:transparent;box-shadow:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none}
+#alarm-overlay button:focus-visible{outline:3px solid #fff;outline-offset:4px}
+#alarm-overlay .alarm-wake{left:4.23%;top:63.62%;width:91.54%;height:12.79%;border-radius:999px}
+#alarm-overlay .alarm-wake:active{background:#00000012}
+.alarm-stop-track{position:absolute;left:4.23%;top:79.39%;width:91.54%;height:12.79%;border-radius:999px}
+.alarm-stop-track.is-dragging{background:#1b1b1b}
+.alarm-stop-label{display:none;position:absolute;inset:0;align-items:center;justify-content:center;padding-left:3%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:clamp(18px,6.5vw,30px);color:#6b6b6b;pointer-events:none}
+.alarm-stop-track.is-dragging .alarm-stop-label{display:flex}
+#alarm-overlay .alarm-stop-thumb{left:0;top:1.5%;width:29.3%;height:97%;border-radius:50%;display:grid;place-items:center;will-change:transform}
+#alarm-overlay .is-dragging .alarm-stop-thumb{background:radial-gradient(ellipse at 50% 0,#785125,#292929 50%,#1b1b1b);border:1px solid #6d583c}
+.alarm-stop-thumb span{display:none;width:33%;height:33%;border-radius:12%;background:#fff}
+.is-dragging .alarm-stop-thumb span{display:block}
