@@ -30,3 +30,22 @@
 .thinking-dots{letter-spacing:3px;animation:buddy-thinking 1s ease-in-out infinite alternate}
 @keyframes buddy-thinking{from{opacity:.3;transform:translateY(1px)}to{opacity:1;transform:translateY(-2px)}}
 @media(prefers-reduced-motion:reduce){.thinking-dots{animation:none}}
+.guided-session{padding:20px;margin:0 0 22px;border:1px solid #ffffff80;border-radius:24px;background:#ffffff60;text-align:center;min-height:130px}
+.guide-set-label{font-size:13px;font-weight:600;opacity:.75;letter-spacing:.3px}
+.guide-counter{display:block;font-size:64px;line-height:1.15;font-variant-numeric:tabular-nums;margin:8px 0}
+.guide-counter:empty{display:none}
+.guided-session .guided-cue{margin:8px 0;font-size:16px}
+.guide-set-progress{display:flex;justify-content:center;gap:7px;margin-top:16px}
+.guide-set-progress:empty{display:none}
+.guide-set-progress i{width:24px;height:5px;border-radius:6px;background:color-mix(in srgb,currentColor 15%,transparent)}
+.guide-set-progress i.current{background:#ffb100}.guide-set-progress i.done{background:currentColor}
+#story-overlay .story-response.input-none{display:block;background:none;border:0;box-shadow:none;padding:0;margin:8px 0 0}
+#story-overlay .response-actions{gap:12px;flex-wrap:wrap}
+#story-overlay .story-continue{min-height:48px;padding:12px 18px;border:0;border-radius:18px;background:var(--scene-ink,#3e285b);color:#fff;opacity:1;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;margin-left:auto}
+#story-overlay .story-continue svg{width:18px;height:18px}
+#story-overlay .story-continue:disabled{opacity:.35}
+#story-overlay .input-none .response-actions{border:0;margin:0;padding:0}
+#story-overlay .input-none .story-continue{width:100%}
+#story-overlay .response-actions{height:auto;min-height:48px;flex:0 0 auto}
+#story-overlay .story-response{flex-basis:172px;height:172px}
+#story-overlay .story-response.input-none{height:56px;flex:0 0 56px}

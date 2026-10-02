@@ -1,4 +1,4 @@
-import {guidanceEditor} from './guidance.js';
+import {guidanceEditor,guidanceSummary} from './guidance.js';
 import {saveLibraryBlock} from './repository.js';
 import {MAX_STEPS} from './limits.js';
 import './theme.js';
@@ -114,6 +114,7 @@ app.addEventListener('click',async event=>{
  catch{announce('Entwurf konnte nicht gespeichert werden. Bitte erneut versuchen.');}
 });
 function updateGates() {
+  for(const summary of app.querySelectorAll('[data-guide-summary]'))summary.textContent=guidanceSummary(stepById(summary.dataset.guideSummary)?.guidance);
   const issues = contentIssues(draft);
   for(const button of app.querySelectorAll('[data-action=save],[data-action=launch-preview]'))button.disabled=saving||issues.length>0||Boolean(outputIssue(draft));
   const next = $('#next');
@@ -154,7 +155,7 @@ app.addEventListener('input', event => {
 });
 app.addEventListener('change', async event => {
   const target = event.target;
-  if(target.dataset.guideMode){const step=stepById(target.dataset.guideMode);if(target.value==='none')delete step.guidance;else{step.guidance=target.value==='repetitions'?{mode:'repetitions',count:5,start:12,interval:6,intro:'Wir beginnen gleich. Finde einen bequemen Stand.'}:{mode:'phases',cues:[{at:0,text:'Nimm dir einen Moment zum Ankommen.'},{at:30,text:'Spüre deine Füße auf dem Boden.'}]};step.timer=true;}commit();}
+  if(target.dataset.guideMode){const step=stepById(target.dataset.guideMode);if(target.value==='none')delete step.guidance;else{step.guidance=target.value==='repetitions'?{mode:'repetitions',sets:1,rest:20,count:5,start:12,interval:6,intro:'Wir beginnen gleich. Finde einen bequemen Stand.'}:{mode:'phases',cues:[{at:0,text:'Nimm dir einen Moment zum Ankommen.'},{at:30,text:'Spüre deine Füße auf dem Boden.'}]};step.timer=true;}commit();}
   if (target.dataset.research) { stepById(target.dataset.research).research = target.checked;if(target.checked)delete stepById(target.dataset.research).guidance; commit(); }
   if (target.dataset.timer) { stepById(target.dataset.timer).timer = target.checked; persist(); }
 
