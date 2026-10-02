@@ -8,6 +8,9 @@ export function clockLabel(value='07:00'){
 }
 export function setPreferences(profile){preferences={...preferences,...profile};document.documentElement.lang=preferences.language;translateUI(document.body);}
 const entries=[
+ ['Dein Buddy recherchiert …','Your buddy is researching …','Ton buddy fait ses recherches …'],
+ ['Dein Buddy bereitet die Stimme vor …','Your buddy is preparing the audio …','Ton buddy prépare la voix …'],
+ ['Festes Vorschau-Beispiel · keine aktuellen Daten','Fixed preview example · not current data','Exemple fixe · pas de données actuelles'],
  ['Sammlung','Collection','Collection'],['Sortieren nach','Sort by','Trier par'],['Wochenplan aufheben','Remove weekly schedule','Supprimer le programme hebdomadaire'],['Stunden','Hours','Heures'],['Tageshälfte','AM or PM','Matin ou après-midi'],['Zurück zur Planung','Back to scheduling','Retour à la planification'],
  ['Merken','Save','Enregistrer'],['Gemerkt','Saved','Enregistrés'],['Selbst erstellt','Created by me','Mes créations'],['Eigene','My own','Mes créations'],
  ['Filter & Sortierung','Filter & sort','Filtrer et trier'],['Herkunft','Source','Origine'],['Sortierung','Sort order','Ordre de tri'],

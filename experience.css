@@ -24,3 +24,9 @@
 .hero-friend{width:157px;right:-8px;top:83px}
 .story-glow{width:100%;left:0}
 .ritual-start{position:sticky;bottom:0;z-index:8;background:#fffdfaf2;backdrop-filter:blur(14px);border-top:1px solid #eee7f1}
+.story-face.swipe-neighbor{pointer-events:none;will-change:transform}
+.buddy-preparing{display:flex;align-items:center;justify-content:center;gap:8px;min-height:24px;font-size:12px;color:var(--scene-ink)}
+.buddy-preparing[hidden]{display:flex;visibility:hidden}
+.thinking-dots{letter-spacing:3px;animation:buddy-thinking 1s ease-in-out infinite alternate}
+@keyframes buddy-thinking{from{opacity:.3;transform:translateY(1px)}to{opacity:1;transform:translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){.thinking-dots{animation:none}}

@@ -85,7 +85,7 @@ export const CATALOG_BLOCKS=[...news,...chosen,meditation];
 const lookup=id=>CATALOG_BLOCKS.find(block=>block.id==='wb-'+id);
 const response=(id,text,input)=>{const block=lookup(id);block.steps.push({...s(text,1,input),id:block.id+'-'+(block.steps.length+1)});};
 for(const block of CATALOG_BLOCKS)block.output=['brain-dump','priority','first-action','ideas'].includes(block.id.replace('wb-',''))?'text':'buddy';
-response('stocks','*Deine Einordnung*\n\nSprich eine kurze Notiz: Welche Meldung ist für dich relevant und welche Frage bleibt offen? Trenne das, was die Quelle belegt, von deiner eigenen Vermutung. Du brauchst daraus heute keine Handelsentscheidung zu machen.','voice');
+lookup('stocks').contentRevision=2;
 response('good-news','*Was bleibt hängen?*\n\nHalte in ein bis zwei Sätzen fest, welcher Fortschritt dir aufgefallen ist und welche Einschränkung wichtig bleibt. Dein eigener Gedanke zählt, nicht die perfekte Zusammenfassung.','text');
 response('culture','*Eine Idee bekommt einen Termin*\n\nNotiere ein Angebot, das dich interessiert, und wann du es prüfen möchtest. Wenn nichts passt, schreib auf, worauf du stattdessen Lust hättest. Du musst nichts buchen.','text');
 response('boot','*Dein Startbild*\n\nHalte deinen Start mit einem Foto fest: dein vorbereiteter Bewegungsplatz, deine Schuhe oder, wenn du möchtest, ein eigenes Fortschrittsfoto. Wähle später denselben Blickwinkel, wenn du vergleichen willst. Das Foto bleibt auf diesem Gerät.','photo');

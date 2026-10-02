@@ -2,6 +2,7 @@ import {MAX_BLOCKS,isOwnRoutine} from './limits.js';
 import {captureSchedule,migrateSingleDailyPlan,weeklyConflicts,dayHasStarted} from './planning.js';
 import { readState, writeState, readRitual, listBlocks, saveBlock, writeLibraryChange } from './storage.js';
 import { CATALOG_BLOCKS, CATALOG_RITUALS } from './demo-catalog.js';
+import { CATALOG_BLOCKS as TEAM_BLOCKS,TEAM_PUBLISHER } from './team-catalog.js';
 import { blockIdentity, defaultAlarm } from './catalog.js';
 import { restoreDraft } from './model.js';
 import { visualRecipe } from './landscape.js';
@@ -29,7 +30,17 @@ export async function loadProduct() {
   if(!data.sharedLibraryVersion)await migrateLibrary();
   if(!data.scheduleRevisions){captureSchedule(data);await writeState('product-v3',data);}
   if(migrateSingleDailyPlan(data))await writeState('product-v3',data);
+  if(!data.stocksListeningVersion)await migrateStocksListening();
   return data;
+}
+async function migrateStocksListening(){
+ const original=TEAM_BLOCKS.find(b=>b.id==='wb-stocks');
+ const old={...original,steps:[...original.steps,{id:'wb-stocks-2',message:{type:'text',text:'*Deine Einordnung*\n\nSprich eine kurze Notiz: Welche Meldung ist für dich relevant und welche Frage bleibt offen? Trenne das, was die Quelle belegt, von deiner eigenen Vermutung. Du brauchst daraus heute keine Handelsentscheidung zu machen.'},minutes:1,input:'voice',timer:false,research:false}]};
+ const signature=contentSignature(old);
+ const update=block=>{if((block.sourceId||block.id)!=='wb-stocks'||block.publisherId!==TEAM_PUBLISHER||block.customized||contentSignature(block)!==signature)return block;return {...block,contentRevision:2,steps:structuredClone(original.steps)};};
+ const put=[];for(const block of await listBlocks()){const revised=update(block);if(revised!==block)put.push(revised);}
+ const next=structuredClone(data);next.rituals.forEach(r=>{r.blocks=r.blocks.map(update);});next.stocksListeningVersion=1;
+ await atomicChange(next,{put});
 }
 export function persistProduct() {
   captureSchedule(data);

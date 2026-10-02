@@ -1,6 +1,6 @@
 import {guidanceCues} from './guidance.js';
 import {researchRequest as prepareResearch,locationForm,requestLocation,saveResearchPreferences} from './research-context.js';
-import {speak,speakGuide} from './speech.js';
+import {speak,speakGuide,preloadSpeech,guideText,warmPreviewAudio} from './speech.js';
 import {research} from './ai-client.js';
 import {readState,writeState} from './storage.js';
 import {animateScreen} from './sheets.js';
@@ -10,7 +10,7 @@ import { localPhoto } from './media.js';
 import { locale, translateUI } from './i18n.js';
 import { symbol, visualStyle,colorOf } from './appearance.js';
 import { lavaMarkup } from './lava.js';
-import { researchFor,resolveStepOutput } from './research-data.js';
+import { researchFor,resolveStepOutput,previewResearch } from './research-data.js';
 import { icon } from './icons.js';
 import { time, restoreDraft, contentIssues, outputIssue } from './model.js';
 import { renderRich, richField, hydrateRich } from './richtext.js';
@@ -30,7 +30,7 @@ import { mascot } from './characters.js';
 const overlay = document.createElement('div'); overlay.id = 'story-overlay'; overlay.hidden = true; document.body.append(overlay);
 let homeCallback;
 let player = null, gesture = null, tick, lastTick = 0, transitionTimer, savedScroll = 0, lastCheckpoint=0, recorder, mediaStream;
-export function configureExperience({ onHome }) { homeCallback = onHome; }
+export function configureExperience({ onHome }) { homeCallback = onHome; setTimeout(()=>warmPreviewAudio(selectedBuddy().id),750); }
 export async function openRitual() { closeStory(false); return homeCallback?.(); }
 export function showStorySaveError(message,retry){
  if(!player||overlay.hidden)return false;
@@ -44,18 +44,21 @@ export function showStorySaveError(message,retry){
 const blockNow = () => player.blocks[player.b];
 const stepNow = () => blockNow().steps[player.s];
 const keyNow = () => `${player.b}:${player.s}`;
-function stateNow() {
-  const key = keyNow();
-  if (!player.states[key]) player.states[key] = { elapsed: 0, paused: false, text: '', memo: false, recording: false, recordSeconds: 0, photos: [], outcome: 'success', finished: false, showTranscript: false, scrollTop: 0 };
-  return player.states[key];
+function stateAt(owner,b,s) {
+  const key = `${b}:${s}`;
+  if (!owner.states[key]) owner.states[key] = { visited:false, elapsed: 0, paused: false, text: '', memo: false, recording: false, recordSeconds: 0, photos: [], outcome: 'success', finished: false, showTranscript: false, scrollTop: 0 };
+  return owner.states[key];
 }
+function stateNow(){return stateAt(player,player.b,player.s);}
 function running() { return player && !player.done && !player.transitioning && !player.hold && !document.hidden && !stateNow().paused && !['loading','error'].includes(stateNow().researchStatus) && !stateNow().speechError && (!stepNow().timer || stateNow().elapsed < stepNow().minutes * 60 || stateNow().speaking); }
 function ready() { const state = stateNow(); return stepNow().input === 'none' || stepNow().input === 'text' && state.text.trim() || stepNow().input === 'voice' && state.memo && !state.recording || stepNow().input === 'photo' && state.photos.length; }
 export function openStory(blocks, options = {}) {
   if (!blocks.length) return;
   closeStory(false); lockAppearance(); stopAudition(); unlockAudio();
   player = { blocks: structuredClone(blocks), b: options.startIndex || 0, s: 0, states: {}, onClose: options.onClose, onReport: options.onReport, title: options.title, onCheckpoint:options.onCheckpoint,returnLabel:options.returnLabel,resumed:Boolean(options.resume),reported: false, startedAt: new Date().toISOString(), preview: options.preview, done: false, hold: false, transitioning: false };
-  if(options.resume){player.b=options.resume.b;player.s=options.resume.s;player.states=structuredClone(options.resume.states);player.startedAt=options.resume.startedAt;Object.values(player.states).forEach(state=>{state.recording=false;state.speaking=false;state.speechLoading=false;if(state.researchStatus==='loading')state.researchStatus='idle';});stateNow().paused=false;stateNow().spoken=false;}
+  if(options.resume){player.b=options.resume.b;player.s=options.resume.s;player.states=structuredClone(options.resume.states);player.startedAt=options.resume.startedAt;Object.values(player.states).forEach(state=>{state.visited??=true;state.watchingResearch=false;state.warmed=false;state.recording=false;state.speaking=false;state.speechLoading=false;if(state.researchStatus==='loading')state.researchStatus='idle';});stateNow().paused=false;stateNow().spoken=false;}
+  player.jobs=new Map();player.abort=new AbortController();player.warmTimes=[];
+  if(player.preview)player.blocks.forEach((block,b)=>block.steps.forEach((step,s)=>{if(step.research)Object.assign(stateAt(player,b,s),{researchResult:previewResearch(block),researchStatus:'ready'});}));
   savedScroll = scrollY; document.body.classList.add('story-open'); overlay.hidden = false;
   overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', options.preview ? 'Baustein-Vorschau' : 'Dein Morgenritual');
   const shell = $('#product-app'); if (shell) shell.inert = true; $('#app').inert = true;
@@ -78,7 +81,7 @@ let speechSession=null,speechGeneration=0;
 function cancelSpeech(){speechGeneration++;speechSession?.audio?.stop();if(speechSession){speechSession.state.speaking=false;speechSession.state.speechLoading=false;}speechSession=null;setBuddySpeaking(overlay,false);}
 
 function followSpeech(element,charIndex=0){
- const card=$('.story-text-card',overlay);if(!card||!element?.isConnected||!running())return;
+ const card=$('.story-text-card',overlay);if(!card||!element?.isConnected||!running()||performance.now()<(stateNow().manualScrollUntil||0))return;
  let rect=element.getBoundingClientRect();
  if(charIndex>0){const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT);let node,left=charIndex;while(node=walker.nextNode()){if(left<node.length){const range=document.createRange();range.setStart(node,left);range.setEnd(node,Math.min(node.length,left+1));rect=range.getBoundingClientRect();break;}left-=node.length;}}
  const box=card.getBoundingClientRect();if(rect.top<box.top||rect.top>box.top+box.height*.6){card.scrollTo({top:Math.max(0,card.scrollTop+rect.top-box.top-28),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
@@ -107,27 +110,56 @@ function syncSpeech(){
   session.audio=speakGuide({cues:guidanceCues(stepNow().guidance),buddyId:selectedBuddy().id,language:locale(),onReady:()=>{if(current())state.speechLoading=false;},onStart:()=>{if(current()){session.audible=true;state.speaking=true;}},onBoundary:e=>{if(current())buddySpeechBoundary($('.story-symbol',overlay),e.word);},onSilent:()=>{if(current()){session.audible=false;state.speaking=false;}},onError:error=>{if(current()){state.speechLoading=false;state.speaking=false;state.speechError=error.message;speechSession=null;renderPlayer();}}});session.audio.setTime(state.elapsed);return;
  }
 
- const element=$('.spoken-copy',overlay),parts=[{element,text:(element?.innerText||outputText()).trim()}];
+ const element=$('.spoken-copy',overlay),parts=[{element,text:spokenText(stepNow(),stateNow())}];
  state.spoken=true;speechSession={key,state,parts,index:0,paused:false};speakPart(speechSession);
 }
-let researchRequest=null;
-function cancelResearch(){if(researchRequest){researchRequest.abort.abort();if(researchRequest.state.researchStatus==='loading')researchRequest.state.researchStatus='idle';researchRequest=null;}}
+function spokenText(step,state){
+ if(step.guidance)return guideText(guidanceCues(step.guidance));
+ const node=document.createElement('div');node.innerHTML=renderRich(resolveStepOutput(step,state).text);
+ return [...node.children].map(el=>el.textContent.trim()).join('\n\n').trim();
+}
+function cancelResearch(){player?.abort.abort();player?.jobs.forEach(job=>job.abort.abort());}
+function prepareStep(owner,b,s){
+ const step=owner.blocks[b].steps[s],state=stateAt(owner,b,s),key=b+':'+s;
+ if(!step.research||researchFor(step,state))return Promise.resolve();
+ if(owner.jobs.has(key))return owner.jobs.get(key).promise;
+ const abort=new AbortController();state.researchStatus='loading';
+ const promise=prepareResearch(step.message.text).then(query=>{abort.signal.throwIfAborted();return research(query,locale(),abort.signal);}).then(result=>{
+  if(abort.signal.aborted)return;Object.assign(state,{researchResult:result,researchStatus:'ready',outcome:'success'});
+ }).catch(error=>{if(abort.signal.aborted){state.researchStatus='idle';return;}Object.assign(state,{researchStatus:'error',outcome:'error',researchError:error.message,researchErrorCode:error.code});}).finally(()=>owner.jobs.delete(key));
+ owner.jobs.set(key,{abort,promise});return promise;
+}
 function ensureResearch(){
- if(!player||player.done||!stepNow().research)return;
- const state=stateNow(),step=stepNow();if(researchFor(step,state)||['loading','error'].includes(state.researchStatus))return;
- cancelResearch();const owner=player,key=keyNow(),abort=new AbortController();researchRequest={state,abort};state.researchStatus='loading';
- prepareResearch(step.message.text).then(query=>research(query,locale(),abort.signal)).then(result=>{
- if(player!==owner||keyNow()!==key||abort.signal.aborted)return;
- state.researchResult=result;state.researchStatus='ready';state.outcome='success';checkpoint();renderPlayer();
- }).catch(error=>{if(player!==owner||abort.signal.aborted||keyNow()!==key)return;state.researchStatus='error';state.outcome='error';state.researchError=error.message;state.researchErrorCode=error.code;renderPlayer();});
+ if(!player||player.done||!stepNow().research||researchFor(stepNow(),stateNow())||stateNow().researchStatus==='error')return;
+ const owner=player,key=keyNow(),state=stateNow();if(state.watchingResearch)return;
+ state.watchingResearch=true;
+ prepareStep(owner,owner.b,owner.s).finally(()=>{state.watchingResearch=false;if(player===owner&&!owner.done&&keyNow()===key){if(gesture?.axis==='x'||owner.transitioning)owner.needsRender=true;else renderPlayer();checkpoint();}});
+}
+async function warmAhead(){
+ const owner=player;if(!owner||owner.done||owner.warming||stateNow().speechLoading||stateNow().speechError||stateNow().researchStatus==='loading')return;
+ owner.warming=true;
+ try{
+  let b=owner.b,s=owner.s;
+  for(let n=0;n<2;n++){
+   if(++s>=owner.blocks[b].steps.length){b++;s=0;}if(b>=owner.blocks.length)break;
+   const block=owner.blocks[b],step=block.steps[s],state=stateAt(owner,b,s);
+   if(state.warmed||state.researchStatus==='error')continue;
+   owner.warmTimes=owner.warmTimes.filter(t=>Date.now()-t<60000);
+   const cost=Number(Boolean(step.research&&!researchFor(step,state)))+Number(block.output==='buddy');
+   if(owner.warmTimes.length+cost>4)break;
+   owner.warmTimes.push(...Array(cost).fill(Date.now()));state.warmed=true;
+   await prepareStep(owner,b,s);if(player!==owner||owner.done||owner.abort.signal.aborted)return;
+   if(block.output==='buddy'&&resolveStepOutput(step,state).kind!=='unavailable')await preloadSpeech(spokenText(step,state),selectedBuddy().id,locale(),owner.abort.signal);
+  }
+ }catch{/* Foreground playback exposes errors and an explicit retry. */}finally{owner.warming=false;}
 }
 function storyContent(){
  const step=stepNow(),block=blockNow(),state=stateNow(),result=researchFor(step,state);
  const issue=step.research&&(state.outcome!=='success'||!result);
- const body=issue?(state.researchErrorCode==='location_required'?locationForm():state.researchStatus==='loading'?'<h2>Recherche läuft …</h2><p>Deine Zeit startet, sobald das Ergebnis da ist.</p><button class="story-pill" data-story="skip">Überspringen</button>':'<h2>Recherche nicht verfügbar</h2><p>'+esc(state.researchError||'Es liegt noch kein Ergebnis vor.')+'</p><button class="story-pill" data-story="retry">Erneut versuchen</button><button class="story-pill" data-story="skip">Überspringen</button>'):'<div class="spoken-copy" data-user-content>'+renderRich(outputText())+'</div>'+(result?'<div class="research-sources"><small>'+esc(step.demoResearch?'Redaktionelles Beispiel · 19.03.2025':'Recherchiert: '+new Date(result.retrievedAt).toLocaleString(locale()))+'</small>'+result.sources.map(source=>'<a class="story-source" href="'+esc(source.url)+'" target="_blank" rel="noopener noreferrer" data-interactive>'+esc(source.title)+' ↗</a>').join('')+'</div>':'');
+ const body=issue?(state.researchErrorCode==='location_required'?locationForm():state.researchStatus==='loading'?'<h2>Recherche läuft …</h2><p>Deine Zeit startet, sobald das Ergebnis da ist.</p><button class="story-pill" data-story="skip">Überspringen</button>':'<h2>Recherche nicht verfügbar</h2><p>'+esc(state.researchError||'Es liegt noch kein Ergebnis vor.')+'</p><button class="story-pill" data-story="retry">Erneut versuchen</button><button class="story-pill" data-story="skip">Überspringen</button>'):'<div class="spoken-copy" data-user-content>'+renderRich(outputText())+'</div>'+(result?'<div class="research-sources"><small>'+esc(result.preview?'Festes Vorschau-Beispiel · keine aktuellen Daten':step.demoResearch?'Redaktionelles Beispiel · 19.03.2025':'Recherchiert: '+new Date(result.retrievedAt).toLocaleString(locale()))+'</small>'+result.sources.map(source=>'<a class="story-source" href="'+esc(source.url)+'" target="_blank" rel="noopener noreferrer" data-interactive>'+esc(source.title)+' ↗</a>').join('')+'</div>':'');
  const speechIssue=state.speechError?'<div class="speech-error" role="status"><p>'+esc(state.speechError)+'</p><button class="story-pill" data-story="speech-retry">Erneut versuchen</button><button class="story-pill" data-story="speech-text">Als Text weiterlesen</button></div>':'';
 
- return `<div class="story-symbol" aria-hidden="true">${buddyArt()}</div><div class="story-step-label"><span>Schritt ${player.s+1} von ${block.steps.length}</span><span class="story-mode">${block.output==='buddy'?`<span class="audio-visual">${Array.from({length:7},(_,i)=>`<i style="--i:${i};--h:${8+i*5%15}px"></i>`).join('')}</span>Audio`:labels[block.output]}</span></div><article class="story-text-card formatted-text" tabindex="0" aria-label="Anweisung und Ausgabe">${speechIssue}${step.guidance?'<p class="guided-cue" role="status" aria-live="off"></p>':''}${body}</article>`;
+ return `<div class="story-symbol" aria-hidden="true">${buddyArt()}</div><div class="buddy-preparing" role="status" hidden><span class="thinking-dots" aria-hidden="true">•••</span><span></span></div><div class="story-step-label"><span>Schritt ${player.s+1} von ${block.steps.length}</span><span class="story-mode">${block.output==='buddy'?`<span class="audio-visual">${Array.from({length:7},(_,i)=>`<i style="--i:${i};--h:${8+i*5%15}px"></i>`).join('')}</span>Audio`:labels[block.output]}</span></div><article class="story-text-card formatted-text" tabindex="0" aria-label="Anweisung und Ausgabe">${speechIssue}${step.guidance?'<p class="guided-cue" role="status" aria-live="off"></p>':''}${body}</article>`;
 }
 function responseView(){
  const state=stateNow(),step=stepNow();
@@ -139,13 +171,18 @@ function responseView(){
  return `<div class="story-response input-${step.input}" data-interactive><div class="response-field">${content}</div><p class="story-input-error" role="alert" hidden></p><div class="response-actions">${step.input!=='none'?'<button data-story="skip" '+(state.recording?'disabled':'')+'>Überspringen</button>':'<span></span>'}</div></div>`;
 }
 
+function playerMarkup(){const block=blockNow(),state=stateNow();
+  return `<div class="story-viewport"><section class="story-face output-${block.output} has-input-${stepNow().input}" tabindex="-1" aria-label="${esc(block.title)}, Schritt ${player.s + 1}" data-block="${player.b}" data-story-step="${player.s}">${lavaMarkup({blocks:[block]},{tint:.55,background:true,blockGradient:true})}<header class="story-header"><div class="story-progress" aria-label="Schrittfortschritt">${block.steps.map((s, i) => `<div class="story-segment"><span style="transform:scaleX(${i < player.s ? 1 : i === player.s ? Math.min(1, stepNow().timer?state.elapsed / (s.minutes * 60):0) : 0})"></span></div>`).join('')}</div><div class="story-topline"><span class="story-avatar" style="--block-color:${colorOf(block).bg}">${symbol(block)}</span><div class="story-owner"><b>${esc(block.title)}</b><span>${player.preview ? 'Vorschau' : `${player.b + 1} von ${player.blocks.length} Bausteinen`}</span></div><button class="story-pause round-button" data-story="pause" aria-label="${state.paused ? 'Fortsetzen' : 'Pausieren'}">${icon(state.paused ? 'play' : 'pause')}</button><button class="story-close round-button" data-story="close" aria-label="Story schließen">${icon('close')}</button></div></header>
+  <div class="story-scroll"><div class="story-content">${storyContent()}</div>${responseView()}</div><footer class="story-footer"><span class="story-clock">${icon('timer')}<b>${stepNow().timer?time(Math.ceil(Math.max(0, stepNow().minutes * 60 - state.elapsed))):'In deinem Tempo'}</b></span><span class="story-status">${state.paused ? 'Pausiert' : 'In deinem Tempo'}</span><button class="story-help" data-story="help" aria-label="Hilfe und Schrittdetails">${icon('info')}</button></footer><button class="sr-only" data-story="prev-step">Schritt neu starten</button><button class="sr-only" data-story="next-step">Nächster Schritt</button><button class="sr-only" data-story="prev-block">Vorheriger Baustein</button><button class="sr-only" data-story="next-block">Nächster Baustein</button></section></div>`;
+}
 function renderPlayer() {
   if (!player) return;
   if (player.done) { renderFinish(); return; }
+  if(gesture?.axis==='x'||player.transitioning){player.needsRender=true;return;}
   ensureResearch();
   const block = blockNow(), state = stateNow();
-  const markup = `<div class="story-viewport"><section class="story-face output-${block.output} has-input-${stepNow().input}" tabindex="-1" aria-label="${esc(block.title)}, Schritt ${player.s + 1}" data-block="${player.b}" data-story-step="${player.s}">${lavaMarkup({blocks:[block]},{tint:.55,background:true,blockGradient:true})}<header class="story-header"><div class="story-progress" aria-label="Schrittfortschritt">${block.steps.map((s, i) => `<div class="story-segment"><span style="transform:scaleX(${i < player.s ? 1 : i === player.s ? Math.min(1, stepNow().timer?state.elapsed / (s.minutes * 60):0) : 0})"></span></div>`).join('')}</div><div class="story-topline"><span class="story-avatar" style="--block-color:${colorOf(block).bg}">${symbol(block)}</span><div class="story-owner"><b>${esc(block.title)}</b><span>${player.preview ? 'Vorschau' : `${player.b + 1} von ${player.blocks.length} Bausteinen`}</span></div><button class="story-pause round-button" data-story="pause" aria-label="${state.paused ? 'Fortsetzen' : 'Pausieren'}">${icon(state.paused ? 'play' : 'pause')}</button><button class="story-close round-button" data-story="close" aria-label="Story schließen">${icon('close')}</button></div></header>
-  <div class="story-scroll"><div class="story-content">${storyContent()}</div>${responseView()}</div><footer class="story-footer"><span class="story-clock">${icon('timer')}<b>${stepNow().timer?time(Math.ceil(Math.max(0, stepNow().minutes * 60 - state.elapsed))):'In deinem Tempo'}</b></span><span class="story-status">${state.paused ? 'Pausiert' : 'In deinem Tempo'}</span><button class="story-help" data-story="help" aria-label="Hilfe und Schrittdetails">${icon('info')}</button></footer><button class="sr-only" data-story="prev-step">Schritt neu starten</button><button class="sr-only" data-story="next-step">Nächster Schritt</button><button class="sr-only" data-story="prev-block">Vorheriger Baustein</button><button class="sr-only" data-story="next-block">Nächster Baustein</button></section></div>`;
+  state.visited=true;
+  const markup=playerMarkup();
   const existing=$('.story-face:not(.outgoing)',overlay),sameBlock=existing?.dataset.block===String(player.b);
   if(sameBlock){
     // Keep the live canvas, mascot and controls mounted throughout this block.
@@ -166,16 +203,15 @@ function renderPlayer() {
   hydrateRich(overlay);translateUI(overlay);
   if(speechSession?.key===keyNow()){
     const elements=[...overlay.querySelectorAll('.spoken-copy p,.spoken-copy li,.spoken-copy h2,.spoken-copy h3')].filter(el=>el.textContent.trim());
-    speechSession.parts.forEach((part,i)=>{part.element=elements[i]||$('.spoken-copy',overlay);});
+    speechSession.parts?.forEach((part,i)=>{part.element=elements[i]||$('.spoken-copy',overlay);});
   }
   const textCard = $('.story-text-card', overlay); if (textCard) {
     textCard.scrollTop = state.scrollTop;
     if(!textCard.dataset.bound){textCard.dataset.bound='true';
-    const pauseReading = () => { stateNow().paused = true; const control = $('.story-pause', overlay); if (control) { control.innerHTML = icon('play'); control.setAttribute('aria-label','Fortsetzen'); } updateVisuals(); };
-    textCard.addEventListener('wheel', pauseReading, { passive:true });
-    textCard.addEventListener('touchmove', event => { if (!gesture || Math.abs(event.touches[0]?.clientY - gesture.y) > 12) pauseReading(); }, { passive:true });
-    textCard.addEventListener('scroll', () => { if(player&&!player.done)stateNow().scrollTop = textCard.scrollTop; }, { passive:true });
-    textCard.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pauseReading();});
+    const manualScroll=()=>{if(player&&!player.done)stateNow().manualScrollUntil=performance.now()+5000;};
+    textCard.addEventListener('wheel',manualScroll,{passive:true});textCard.addEventListener('touchmove',manualScroll,{passive:true});
+    textCard.addEventListener('scroll',()=>{if(player&&!player.done)stateNow().scrollTop=textCard.scrollTop;},{passive:true});
+    textCard.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))manualScroll();});
     }
   }
   updateVisuals();
@@ -198,11 +234,13 @@ function updateVisuals() {
   setBuddySpeaking($('.story-symbol',overlay),Boolean(state.speaking&&speechSession?.audible&&running()));
   if(stepNow().guidance){const cues=guidanceCues(stepNow().guidance),cue=cues.findLast(c=>c.at<=state.elapsed),el=$('.guided-cue',overlay);if(el){const text=cue?(cue.count?'Wiederholung '+cue.count+' / '+stepNow().guidance.count:cue.text):'Gleich geht’s los …';if(el.textContent!==text)el.textContent=text;}}
   syncSpeech();
+  const preparing=$('.buddy-preparing',overlay);if(preparing){const phase=state.researchStatus==='loading'?'research':state.speechLoading?'voice':'';preparing.hidden=!phase;if(preparing.dataset.phase!==phase){preparing.dataset.phase=phase;preparing.lastElementChild.textContent=phase==='research'?'Dein Buddy recherchiert …':'Dein Buddy bereitet die Stimme vor …';translateUI(preparing);}}
+  warmAhead();
   setMusic(blockNow().music || 'none', .25, running() && !state.recording, Boolean(state.speaking));
 }
 function updateClock() {
   const now = performance.now(), delta = Math.max(0, (now - lastTick) / 1000); lastTick = now;
-  if (!player || player.done || player.transitioning) return;
+  if (!player || player.done || player.transitioning || gesture?.axis==='x') return;
   const state = stateNow();
   if (state.recording && !document.hidden) {
     state.recordSeconds += delta;
@@ -244,31 +282,20 @@ async function recordMemo(){
 }
 function checkpoint(){if(player&&!player.preview&&!player.done)player.onCheckpoint?.({b:player.b,s:player.s,states:structuredClone(player.states),startedAt:player.startedAt});}
 
-function moveTo(b, s) {
+function moveTo(b, s, settled=false) {
   if (!player || player.done || player.transitioning || stateNow().recording || stateNow().requesting || stateNow().photoLoading || b < 0 || b >= player.blocks.length) return;
   if(stateNow().recording)return;
-  cancelSpeech();cancelResearch();
+  cancelSpeech();
   const oldB = player.b, oldFace = $('.story-face', overlay);
   player.b = b; player.s = s; player.hold = false; player.lastLeft=null; gesture = null; lastTick = performance.now();
   Object.assign(stateNow(),{spoken:false,speaking:false,paused:false,elapsed:0,speechPart:0,scrollTop:0});
   renderPlayer();
-  if (oldB !== b && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const face = $('.story-face', overlay), viewport = $('.story-viewport', overlay);
-    const forward = b > oldB;
-    oldFace.setAttribute('aria-hidden', 'true'); oldFace.inert = true; oldFace.classList.add('outgoing');
-    viewport.append(oldFace); player.transitioning = true;
-    const width = viewport.clientWidth;
-    const common = { duration: 560, easing: 'cubic-bezier(.22,.75,.2,1)', fill: 'both' };
-    oldFace.animate([{ transform: 'rotateY(0deg)', opacity: 1 }, { transform: `translateX(${forward ? -width / 2 : width / 2}px) rotateY(${forward ? -88 : 88}deg)`, opacity: .35 }], common);
-    face.animate([{ transform: `translateX(${forward ? width / 2 : -width / 2}px) rotateY(${forward ? 88 : -88}deg)`, opacity: .35 }, { transform: 'rotateY(0deg)', opacity: 1 }], common);
-    transitionTimer = setTimeout(() => {
-      // Clear the filled transforms at the same point that gestures unlock.
-      // This also avoids stale perspective hit areas on rapid back-and-forth.
-      oldFace.getAnimations().forEach(animation => animation.cancel());
-      face.getAnimations().forEach(animation => animation.cancel());
-      oldFace.remove();
-      if (player) { player.transitioning = false; lastTick = performance.now(); updateVisuals(); }
-    }, 570);
+  if(oldB!==b&&!settled&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+   const face=$('.story-face',overlay),viewport=$('.story-viewport',overlay),width=viewport.clientWidth,sign=b>oldB?-1:1;
+   oldFace.inert=true;oldFace.classList.add('outgoing');viewport.append(oldFace);player.transitioning=true;
+   oldFace.animate([{transform:'translateX(0)'},{transform:'translateX('+sign*width+'px)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',fill:'both'});
+   face.animate([{transform:'translateX('+(-sign*width)+'px)'},{transform:'translateX(0)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)'});
+   transitionTimer=setTimeout(()=>{oldFace.remove();if(player){player.transitioning=false;lastTick=performance.now();if(player.needsRender){player.needsRender=false;renderPlayer();}else updateVisuals();}},230);
   }
   checkpoint();announce(`${blockNow().title}, Schritt ${s + 1}`);
 }
@@ -304,18 +331,15 @@ overlay.addEventListener('input', event => {
   stateNow().text = event.target.value;checkpoint();
 
 });
-overlay.addEventListener('focusin', event => {
-  if (event.target.id === 'story-answer') { stateNow().paused = true; const pause = $('.story-pause', overlay); pause.innerHTML = icon('play'); pause.setAttribute('aria-label', 'Fortsetzen'); updateVisuals(); }
-});
 overlay.addEventListener('change', async event => {
   if (event.target.id !== 'story-photo' || !event.target.files[0]) return;
-  const state = stateNow(), session = player, file = event.target.files[0]; state.paused = true;state.photoLoading=true;
+  const state = stateNow(), session = player, file = event.target.files[0]; state.photoLoading=true;
   try {
     const photo=await localPhoto(file);if(player!==session||state!==stateNow())return;state.photos=[photo];state.photoLoading=false;checkpoint();renderPlayer();
   } catch (error) { state.photoLoading=false;if (player === session && state === stateNow()) { const target = $('.story-input-error', overlay); target.hidden = false; target.textContent = error.message || 'Dieses Foto konnte nicht geladen werden.'; } }
 });
 overlay.addEventListener('click', event => {
-  if(event.target.closest('.photo-response')){if(player&&!player.done){stateNow().paused=true;updateVisuals();}return;}
+  if(event.target.closest('.photo-response'))return;
   const button = event.target.closest('[data-story]'); if (!button || button.disabled || !player || player.transitioning) return;
   const action = button.dataset.story;
   if(action==='close'){if(!player.done&&stateNow().recording){stateNow().closeAfterRecording=true;stopRecording();return;}closeStory();return;}
@@ -332,7 +356,7 @@ overlay.addEventListener('click', event => {
   if (action === 'prev-step') prevStep();
   if (action === 'next-block') nextBlock();
   if (action === 'prev-block') moveTo(player.b - 1, 0);
-  if(action==='retry'){cancelResearch();state.researchStatus='idle';state.researchError=null;renderPlayer();}
+  if(action==='retry'){state.researchStatus='idle';state.researchError=null;renderPlayer();}
   if(action==='speech-retry'){state.speechError=null;state.spoken=false;state.paused=false;renderPlayer();}
   if(action==='speech-text'){cancelSpeech();state.speechError=null;state.speechLoading=false;state.textOnly=true;state.paused=false;renderPlayer();}
   if (action === 'help') { state.helpWasPaused=state.paused;state.paused = true; showStoryHelp(); }
@@ -348,22 +372,61 @@ function showStoryHelp() {
 // scroll and editing keep their native behavior. A hold never toggles pause.
 overlay.addEventListener('pointerdown', event => {
   if (!player || player.done || player.transitioning || event.button !== 0 || event.target.closest('a,button,input,textarea,select,label,summary,audio,[contenteditable],[data-interactive],.story-help-pane')) return;
-  gesture = { x: event.clientX, y: event.clientY, id: event.pointerId, held: false, moved: false };
+  gesture = { x: event.clientX, y: event.clientY, id: event.pointerId, held: false, moved: false, at:performance.now(), dx:0 };
   gesture.holdTimer = setTimeout(() => { if (gesture) { gesture.held = true; player.hold = true; updateVisuals(); } }, 230);
 });
 overlay.addEventListener('pointermove', event => {
   if (!gesture || event.pointerId !== gesture.id) return;
-  if (Math.abs(event.clientX - gesture.x) > 12 || Math.abs(event.clientY - gesture.y) > 12) { clearTimeout(gesture.holdTimer); gesture.moved = true; player.hold = true; }
+  const g=gesture,dx=event.clientX-g.x,dy=event.clientY-g.y;
+  if(!g.axis&&Math.max(Math.abs(dx),Math.abs(dy))>8){
+    clearTimeout(g.holdTimer);g.moved=true;player.hold=false;
+    g.axis=Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';
+    if(g.axis==='x'&&!stateNow().recording&&!stateNow().requesting&&!stateNow().photoLoading){g.face=$('.story-face',overlay);g.width=$('.story-viewport',overlay).clientWidth;overlay.setPointerCapture(event.pointerId);}
+    else g.axis='y';
+  }
+  if(g.axis!=='x')return;
+  event.preventDefault();g.dx=dx;
+  const target=player.b+(dx<0?1:-1),valid=target>=0&&target<player.blocks.length;
+  if(g.target!==target){
+    g.neighbor?.remove();g.neighbor=null;g.target=target;
+    if(valid){
+      const b=player.b,s=player.s;let markup;
+      try{player.b=target;player.s=0;markup=playerMarkup();}finally{player.b=b;player.s=s;}
+      const template=document.createElement('template');template.innerHTML=markup;g.neighbor=template.content.querySelector('.story-face');
+      g.neighbor.classList.add('swipe-neighbor');g.neighbor.inert=true;g.neighbor.setAttribute('aria-hidden','true');
+      g.neighbor.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));$('.story-viewport',overlay).append(g.neighbor);translateUI(g.neighbor);
+    }
+  }
+  const offset=valid?dx:dx*.18;
+  g.face.style.transform=`translateX(${offset}px)`;
+  if(g.neighbor)g.neighbor.style.transform=`translateX(${dx+(dx<0?g.width:-g.width)}px)`;
 });
 overlay.addEventListener('pointerup', event => {
   if (!gesture || event.pointerId !== gesture.id) return;
   const g = gesture; clearTimeout(g.holdTimer); gesture = null; player.hold = false;
   const dx = event.clientX - g.x, dy = event.clientY - g.y;
-  if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.4) { if (dx < 0) nextBlock(); else moveTo(player.b - 1, 0); }
+  if(g.axis==='x'){
+    const velocity=Math.abs(dx)/Math.max(1,performance.now()-g.at);
+    settleSwipe(g,Boolean(g.neighbor&&(Math.abs(dx)>g.width*.22||Math.abs(dx)>25&&velocity>.45)));return;
+  }
   else if (!g.held && !g.moved) { const rect = $('.story-face', overlay).getBoundingClientRect(); const x = (event.clientX - rect.left) / rect.width; if (x < .28) prevStep(); else if (x > .72) advanceStep(); }
   updateVisuals();
 });
-function cancelGesture() { clearTimeout(gesture?.holdTimer); gesture = null; if (player) { player.hold = false; updateVisuals(); } }
+function settleSwipe(g,commit){
+ const owner=player;if(!owner||!g.face)return;
+ owner.transitioning=true;const sign=g.dx<0?-1:1,to=commit?sign*g.width:0;
+ const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:Math.min(240,Math.max(120,Math.abs(to-g.dx)*.55));
+ const options={duration,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'};
+ const animations=[g.face.animate([{transform:g.face.style.transform},{transform:`translateX(${to}px)`}],options)];
+ if(g.neighbor)animations.push(g.neighbor.animate([{transform:g.neighbor.style.transform},{transform:`translateX(${commit?0:-sign*g.width}px)`}],options));
+ Promise.all(animations.map(a=>a.finished.catch(()=>{}))).then(()=>{
+   animations.forEach(a=>a.cancel());g.face.style.transform='';g.neighbor?.remove();
+   if(player!==owner||owner.done)return;owner.transitioning=false;
+   if(commit){if(!stateNow().finished)stateNow().skipped=true;moveTo(g.target,0,true);}
+   else if(owner.needsRender){owner.needsRender=false;renderPlayer();}else updateVisuals();
+ });
+}
+function cancelGesture() { const g=gesture;clearTimeout(g?.holdTimer);gesture=null;if(player){player.hold=false;if(g?.axis==='x')settleSwipe(g,false);else updateVisuals();} }
 overlay.addEventListener('pointercancel', cancelGesture);
 window.addEventListener('blur', () => { cancelGesture(); if (player && !player.done) { stateNow().paused = true; stopRecording();updateVisuals();checkpoint(); } });
 document.addEventListener('visibilitychange', () => { if (player && !player.done && document.hidden) { stateNow().paused = true; stopRecording(); cancelGesture(); checkpoint();updateVisuals(); } lastTick = performance.now(); });
@@ -380,7 +443,7 @@ document.addEventListener('keydown', event => {
 function reportRun() {
   if (!player || player.preview || player.reported || !player.onReport) return;
   player.reported = true;
-  const answers = Object.entries(player.states).map(([key,state]) => { const [b,stepIndex] = key.split(':').map(Number); return { blockTitle:player.blocks[b].title, blockId:player.blocks[b].id,symbol:player.blocks[b].symbol,sourceId:player.blocks[b].sourceId,shape:player.blocks[b].shape,theme:player.blocks[b].theme,instruction:player.blocks[b].steps[stepIndex].message?.text,researchResult:state.researchResult,input:player.blocks[b].steps[stepIndex].input,stepIndex, text:state.text, memo:state.memo, recordSeconds:state.recordSeconds, photos:state.photos,audio:state.audio,skipped:Boolean(state.skipped),finished:state.finished }; });
+  const answers = Object.entries(player.states).filter(([,state])=>state.visited).map(([key,state]) => { const [b,stepIndex] = key.split(':').map(Number); return { blockTitle:player.blocks[b].title, blockId:player.blocks[b].id,symbol:player.blocks[b].symbol,sourceId:player.blocks[b].sourceId,shape:player.blocks[b].shape,theme:player.blocks[b].theme,instruction:player.blocks[b].steps[stepIndex].message?.text,researchResult:state.researchResult,input:player.blocks[b].steps[stepIndex].input,stepIndex, text:state.text, memo:state.memo, recordSeconds:state.recordSeconds, photos:state.photos,audio:state.audio,skipped:Boolean(state.skipped),finished:state.finished }; });
   player.onReport({ startedAt:player.startedAt, ended:player.done,completed:player.done&&answers.filter(a=>a.finished).length===player.blocks.reduce((sum,b)=>sum+b.steps.length,0), finishedCount:answers.filter(a=>a.finished).length, totalSteps:player.blocks.reduce((sum,b)=>sum+b.steps.length,0), elapsedSeconds:Math.floor(Object.values(player.states).reduce((sum,state)=>sum+state.elapsed,0)), answers });
 }
 

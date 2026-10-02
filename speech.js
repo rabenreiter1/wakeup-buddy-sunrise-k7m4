@@ -1,7 +1,14 @@
 import {askAI} from './ai-client.js';
 import {audioContext} from './audio.js';
+import {PREVIEW_SAMPLES} from './research-data.js';
 let current=null;
 const memory=new Map();
+const pending=new Map();
+export const guideText=cues=>cues.map(cue=>cue.text.trim()).join('\n');
+export const preloadSpeech=(text,buddyId,language,signal)=>getAudio(text,buddyId,language,signal);
+export async function warmPreviewAudio(buddyId){
+ for(const text of Object.values(PREVIEW_SAMPLES))try{await getAudio(text,buddyId,'de');}catch{/* Playback offers retry if a static download failed. */}
+}
 // Unlock the shared context in the original tap, before fetching or decoding TTS.
 // A media element created after that await loses user activation on iPhone Safari.
 function speechContext(){try{return audioContext();}catch{return null;}}
@@ -36,9 +43,27 @@ async function decodedAudio(context,data){
 }
 async function audioKey(text,buddyId,language){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([text,buddyId,language,'eleven-v4-1'])));return new URL('./__voice_cache__/'+[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join(''),import.meta.url).href;}
 async function getAudio(text,buddyId,language,signal){
- const key=await audioKey(text,buddyId,language);if(memory.has(key))return memory.get(key);
+ if(Object.values(PREVIEW_SAMPLES).includes(text))language='de';
+ signal?.throwIfAborted();const key=await audioKey(text,buddyId,language);signal?.throwIfAborted();if(memory.has(key))return memory.get(key);
+ let entry=pending.get(key);
+ if(!entry||entry.abort.signal.aborted){
+  entry={abort:new AbortController(),users:0};pending.set(key,entry);
+  entry.promise=loadAudio(key,text,buddyId,language,entry.abort.signal).finally(()=>{if(pending.get(key)===entry)pending.delete(key);});
+ }
+ return new Promise((resolve,reject)=>{
+  entry.users++;let finished=false;
+  const end=(callback,value)=>{if(finished)return;finished=true;signal?.removeEventListener('abort',cancel);if(--entry.users===0)entry.abort.abort();callback(value);};
+  const cancel=()=>end(reject,new DOMException('Abgebrochen','AbortError'));
+  signal?.addEventListener('abort',cancel,{once:true});entry.promise.then(value=>end(resolve,value),error=>end(reject,error));if(signal?.aborted)cancel();
+ });
+}
+async function loadAudio(key,text,buddyId,language,signal){
  let cache;try{cache=await caches.open('wakeup-voice-v1');const hit=await cache.match(key);if(hit){const value=await hit.json();memory.set(key,value);return value;}}catch{}
- const value=await askAI('/api/tts',{text,buddyId,language:language.slice(0,2)},signal);signal.throwIfAborted();
+ const sample=Object.entries(PREVIEW_SAMPLES).find(([,copy])=>copy===text)?.[0];
+ let value;
+ if(sample){const response=await fetch(new URL(`./assets/previews/${sample}-${buddyId}.json`,import.meta.url),{signal});if(!response.ok)throw Error('Die Hörprobe konnte nicht geladen werden. Bitte erneut versuchen.');value=await response.json();}
+ else value=await askAI('/api/tts',{text,buddyId,language:language.slice(0,2)},signal);
+ signal.throwIfAborted();
  memory.set(key,value);if(memory.size>30)memory.delete(memory.keys().next().value);
  if(cache)try{await cache.put(key,new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}}));const keys=await cache.keys();for(const old of keys.slice(0,-60))await cache.delete(old);}catch{}
  return value;
