@@ -1,7 +1,11 @@
+import {guidanceCues} from './guidance.js';
+import {researchRequest as prepareResearch,locationForm,requestLocation,saveResearchPreferences} from './research-context.js';
+import {speak,speakGuide} from './speech.js';
+import {research} from './ai-client.js';
 import {readState,writeState} from './storage.js';
 import {animateScreen} from './sheets.js';
 import {lockAppearance,unlockAppearance} from './theme.js';
-import { buddyArt,styleUtterance,setBuddySpeaking,buddySpeechBoundary } from './buddies.js';
+import { buddyArt,selectedBuddy,setBuddySpeaking,buddySpeechBoundary } from './buddies.js';
 import { localPhoto } from './media.js';
 import { locale, translateUI } from './i18n.js';
 import { symbol, visualStyle,colorOf } from './appearance.js';
@@ -45,13 +49,13 @@ function stateNow() {
   if (!player.states[key]) player.states[key] = { elapsed: 0, paused: false, text: '', memo: false, recording: false, recordSeconds: 0, photos: [], outcome: 'success', finished: false, showTranscript: false, scrollTop: 0 };
   return player.states[key];
 }
-function running() { return player && !player.done && !player.transitioning && !player.hold && !document.hidden && !stateNow().paused && (!stepNow().timer || stateNow().elapsed < stepNow().minutes * 60 || stateNow().speaking); }
+function running() { return player && !player.done && !player.transitioning && !player.hold && !document.hidden && !stateNow().paused && !['loading','error'].includes(stateNow().researchStatus) && !stateNow().speechError && (!stepNow().timer || stateNow().elapsed < stepNow().minutes * 60 || stateNow().speaking); }
 function ready() { const state = stateNow(); return stepNow().input === 'none' || stepNow().input === 'text' && state.text.trim() || stepNow().input === 'voice' && state.memo && !state.recording || stepNow().input === 'photo' && state.photos.length; }
 export function openStory(blocks, options = {}) {
   if (!blocks.length) return;
   closeStory(false); lockAppearance(); stopAudition(); unlockAudio();
   player = { blocks: structuredClone(blocks), b: options.startIndex || 0, s: 0, states: {}, onClose: options.onClose, onReport: options.onReport, title: options.title, onCheckpoint:options.onCheckpoint,returnLabel:options.returnLabel,resumed:Boolean(options.resume),reported: false, startedAt: new Date().toISOString(), preview: options.preview, done: false, hold: false, transitioning: false };
-  if(options.resume){player.b=options.resume.b;player.s=options.resume.s;player.states=structuredClone(options.resume.states);player.startedAt=options.resume.startedAt;Object.values(player.states).forEach(state=>{state.recording=false;state.speaking=false;});stateNow().paused=false;stateNow().spoken=false;}
+  if(options.resume){player.b=options.resume.b;player.s=options.resume.s;player.states=structuredClone(options.resume.states);player.startedAt=options.resume.startedAt;Object.values(player.states).forEach(state=>{state.recording=false;state.speaking=false;state.speechLoading=false;if(state.researchStatus==='loading')state.researchStatus='idle';});stateNow().paused=false;stateNow().spoken=false;}
   savedScroll = scrollY; document.body.classList.add('story-open'); overlay.hidden = false;
   overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', options.preview ? 'Baustein-Vorschau' : 'Dein Morgenritual');
   const shell = $('#product-app'); if (shell) shell.inert = true; $('#app').inert = true;
@@ -62,16 +66,17 @@ export function openStory(blocks, options = {}) {
 export function closeStory(notify = true) {
   if (!player) return;
   clearInterval(tick); clearTimeout(transitionTimer); clearTimeout(gesture?.holdTimer); gesture = null;
-  photoDialog?.close();checkpoint();reportRun(); stopMusic(); cancelSpeech();
+  photoDialog?.close();cancelResearch();checkpoint();reportRun(); stopMusic(); cancelSpeech();
   mediaStream?.getTracks().forEach(t=>t.stop());mediaStream=null;const callback = player.onClose; player = null;
   overlay.hidden = true; overlay.innerHTML = ''; document.body.classList.remove('story-open');unlockAppearance(); const shell = $('#product-app'); if (shell) shell.inert = false; $('#app').inert = false; window.scrollTo(0, savedScroll);
   if (notify) {callback?.();const target=document.querySelector('#product-app:not([hidden]),#app:not([hidden])');if(target)animateScreen(target,'back');}
 }
 function outputText(){
- return resolveStepOutput(stepNow()).text;
+ return resolveStepOutput(stepNow(),stateNow()).text;
 }
 let speechSession=null,speechGeneration=0;
-function cancelSpeech(){speechGeneration++;if(speechSession)speechSession.state.speaking=false;speechSession=null;setBuddySpeaking(overlay,false);window.speechSynthesis?.cancel();}
+function cancelSpeech(){speechGeneration++;speechSession?.audio?.stop();if(speechSession){speechSession.state.speaking=false;speechSession.state.speechLoading=false;}speechSession=null;setBuddySpeaking(overlay,false);}
+
 function followSpeech(element,charIndex=0){
  const card=$('.story-text-card',overlay);if(!card||!element?.isConnected||!running())return;
  let rect=element.getBoundingClientRect();
@@ -81,32 +86,48 @@ function followSpeech(element,charIndex=0){
 function speakPart(session){
  if(speechSession!==session||!player||player.done)return;
  const part=session.parts[session.index];if(!part){session.state.speaking=false;speechSession=null;updateVisuals();return;}
- session.pending=false;session.audible=false;session.state.speechPart=session.index;session.state.speaking=true;
- const utterance=new SpeechSynthesisUtterance(part.text),generation=speechGeneration;session.utterance=utterance;
- const current=()=>speechSession===session&&speechGeneration===generation;
- styleUtterance(utterance);
- utterance.onstart=()=>{if(current()){session.audible=true;followSpeech(part.element);updateVisuals();}};
- utterance.onboundary=e=>{if(current()){followSpeech(part.element,e.charIndex);buddySpeechBoundary($('.story-symbol',overlay),part.text.slice(e.charIndex).split(/\s/)[0]);}};
- utterance.onend=()=>{if(!current())return;session.index++;if(session.index>=session.parts.length){session.state.speaking=false;speechSession=null;updateVisuals();}else if(running())speakPart(session);else session.pending=true;};
- utterance.onerror=()=>{if(current()){session.state.speaking=false;speechSession=null;updateVisuals();}};
- window.speechSynthesis.speak(utterance);
+ session.pending=false;session.audible=false;session.state.speechPart=session.index;session.state.speechLoading=true;
+ const generation=speechGeneration,current=()=>speechSession===session&&speechGeneration===generation;
+ session.audio=speak({text:part.text,buddyId:selectedBuddy().id,language:locale(),
+ onStart:()=>{if(current()){session.audible=true;session.state.speechLoading=false;session.state.speaking=true;followSpeech(part.element);updateVisuals();}},
+ onBoundary:e=>{if(current()){followSpeech(part.element,e.charIndex);buddySpeechBoundary($('.story-symbol',overlay),e.word);}},
+ onEnd:()=>{if(!current())return;session.index++;session.state.speaking=false;if(session.index>=session.parts.length){speechSession=null;updateVisuals();}else if(running())speakPart(session);else session.pending=true;},
+ onError:error=>{if(current()){session.state.speaking=false;session.state.speechLoading=false;session.state.speechError=error.message;speechSession=null;renderPlayer();}}
+ });
 }
 function syncSpeech(){
- if(!player||player.done||blockNow().output!=='buddy'||resolveStepOutput(stepNow()).kind==='unavailable'||stepNow().research&&stateNow().outcome!=='success'){if(speechSession)cancelSpeech();return;}
- const state=stateNow(),key=keyNow(),synth=window.speechSynthesis;if(!synth)return;
+ if(!player||player.done||blockNow().output!=='buddy'||stateNow().textOnly||resolveStepOutput(stepNow(),stateNow()).kind==='unavailable'||stepNow().research&&stateNow().outcome!=='success'){if(speechSession)cancelSpeech();return;}
+ const state=stateNow(),key=keyNow();
  if(speechSession&&speechSession.key!==key)cancelSpeech();
- if(!running()){if(speechSession&&!speechSession.paused){synth.pause();speechSession.paused=true;}return;}
- if(speechSession){if(speechSession.paused){synth.resume();speechSession.paused=false;}if(speechSession.pending)speakPart(speechSession);return;}
+ if(!running()){if(speechSession&&!speechSession.paused){speechSession.paused=true;speechSession.audio?.pause();}return;}
+ if(speechSession){if(speechSession.paused){speechSession.paused=false;speechSession.audio?.resume();}if(speechSession.pending)speakPart(speechSession);speechSession?.audio?.setTime?.(state.elapsed);return;}
  if(state.spoken)return;
- const elements=[...overlay.querySelectorAll('.spoken-copy p,.spoken-copy li,.spoken-copy h2,.spoken-copy h3')],parts=elements.map(element=>({element,text:element.textContent.trim()})).filter(p=>p.text);
- if(!parts.length)parts.push({element:$('.spoken-copy',overlay),text:outputText().replaceAll('*','')});
- state.spoken=true;speechSession={key,state,parts,index:Math.min(state.speechPart||0,parts.length-1),paused:false};speakPart(speechSession);
+ if(stepNow().guidance){
+  state.spoken=true;state.speechLoading=true;const session={key,state,paused:false,audible:false};speechSession=session;const current=()=>speechSession===session;
+  session.audio=speakGuide({cues:guidanceCues(stepNow().guidance),buddyId:selectedBuddy().id,language:locale(),onReady:()=>{if(current())state.speechLoading=false;},onStart:()=>{if(current()){session.audible=true;state.speaking=true;}},onBoundary:e=>{if(current())buddySpeechBoundary($('.story-symbol',overlay),e.word);},onSilent:()=>{if(current()){session.audible=false;state.speaking=false;}},onError:error=>{if(current()){state.speechLoading=false;state.speaking=false;state.speechError=error.message;speechSession=null;renderPlayer();}}});session.audio.setTime(state.elapsed);return;
+ }
+
+ const element=$('.spoken-copy',overlay),parts=[{element,text:(element?.innerText||outputText()).trim()}];
+ state.spoken=true;speechSession={key,state,parts,index:0,paused:false};speakPart(speechSession);
+}
+let researchRequest=null;
+function cancelResearch(){if(researchRequest){researchRequest.abort.abort();if(researchRequest.state.researchStatus==='loading')researchRequest.state.researchStatus='idle';researchRequest=null;}}
+function ensureResearch(){
+ if(!player||player.done||!stepNow().research)return;
+ const state=stateNow(),step=stepNow();if(researchFor(step,state)||['loading','error'].includes(state.researchStatus))return;
+ cancelResearch();const owner=player,key=keyNow(),abort=new AbortController();researchRequest={state,abort};state.researchStatus='loading';
+ prepareResearch(step.message.text).then(query=>research(query,locale(),abort.signal)).then(result=>{
+ if(player!==owner||keyNow()!==key||abort.signal.aborted)return;
+ state.researchResult=result;state.researchStatus='ready';state.outcome='success';checkpoint();renderPlayer();
+ }).catch(error=>{if(player!==owner||abort.signal.aborted||keyNow()!==key)return;state.researchStatus='error';state.outcome='error';state.researchError=error.message;state.researchErrorCode=error.code;renderPlayer();});
 }
 function storyContent(){
- const step=stepNow(),block=blockNow(),state=stateNow(),result=researchFor(step);
+ const step=stepNow(),block=blockNow(),state=stateNow(),result=researchFor(step,state);
  const issue=step.research&&(state.outcome!=='success'||!result);
- const body=issue?`<h2>${state.outcome==='error'?'Recherche nicht erreichbar.':'Kein Ergebnis verfügbar.'}</h2><p>${!result?'Es liegt noch kein Ergebnis vor. Du kannst diesen Schritt überspringen.':'Versuche es erneut oder überspringe diesen Schritt.'}</p>${result?'<button class="story-pill" data-story="retry">Erneut versuchen</button>':''}`:`<div class="spoken-copy" data-user-content>${renderRich(outputText())}</div>${result?`<a class="story-source" href="${result.url}" target="_blank" rel="noopener noreferrer" data-interactive>Quelle: ${result.source} · ${result.date} ↗</a>`:''}`;
- return `<div class="story-symbol" aria-hidden="true">${buddyArt()}</div><div class="story-step-label"><span>Schritt ${player.s+1} von ${block.steps.length}</span><span class="story-mode">${block.output==='buddy'?`<span class="audio-visual">${Array.from({length:7},(_,i)=>`<i style="--i:${i};--h:${8+i*5%15}px"></i>`).join('')}</span>Audio`:labels[block.output]}</span></div><article class="story-text-card formatted-text" tabindex="0" aria-label="Anweisung und Ausgabe">${body}</article>`;
+ const body=issue?(state.researchErrorCode==='location_required'?locationForm():state.researchStatus==='loading'?'<h2>Recherche läuft …</h2><p>Deine Zeit startet, sobald das Ergebnis da ist.</p><button class="story-pill" data-story="skip">Überspringen</button>':'<h2>Recherche nicht verfügbar</h2><p>'+esc(state.researchError||'Es liegt noch kein Ergebnis vor.')+'</p><button class="story-pill" data-story="retry">Erneut versuchen</button><button class="story-pill" data-story="skip">Überspringen</button>'):'<div class="spoken-copy" data-user-content>'+renderRich(outputText())+'</div>'+(result?'<div class="research-sources"><small>'+esc(step.demoResearch?'Redaktionelles Beispiel · 19.03.2025':'Recherchiert: '+new Date(result.retrievedAt).toLocaleString(locale()))+'</small>'+result.sources.map(source=>'<a class="story-source" href="'+esc(source.url)+'" target="_blank" rel="noopener noreferrer" data-interactive>'+esc(source.title)+' ↗</a>').join('')+'</div>':'');
+ const speechIssue=state.speechError?'<div class="speech-error" role="status"><p>'+esc(state.speechError)+'</p><button class="story-pill" data-story="speech-retry">Erneut versuchen</button><button class="story-pill" data-story="speech-text">Als Text weiterlesen</button></div>':'';
+
+ return `<div class="story-symbol" aria-hidden="true">${buddyArt()}</div><div class="story-step-label"><span>Schritt ${player.s+1} von ${block.steps.length}</span><span class="story-mode">${block.output==='buddy'?`<span class="audio-visual">${Array.from({length:7},(_,i)=>`<i style="--i:${i};--h:${8+i*5%15}px"></i>`).join('')}</span>Audio`:labels[block.output]}</span></div><article class="story-text-card formatted-text" tabindex="0" aria-label="Anweisung und Ausgabe">${speechIssue}${step.guidance?'<p class="guided-cue" role="status" aria-live="off"></p>':''}${body}</article>`;
 }
 function responseView(){
  const state=stateNow(),step=stepNow();
@@ -121,6 +142,7 @@ function responseView(){
 function renderPlayer() {
   if (!player) return;
   if (player.done) { renderFinish(); return; }
+  ensureResearch();
   const block = blockNow(), state = stateNow();
   const markup = `<div class="story-viewport"><section class="story-face output-${block.output} has-input-${stepNow().input}" tabindex="-1" aria-label="${esc(block.title)}, Schritt ${player.s + 1}" data-block="${player.b}" data-story-step="${player.s}">${lavaMarkup({blocks:[block]},{tint:.55,background:true,blockGradient:true})}<header class="story-header"><div class="story-progress" aria-label="Schrittfortschritt">${block.steps.map((s, i) => `<div class="story-segment"><span style="transform:scaleX(${i < player.s ? 1 : i === player.s ? Math.min(1, stepNow().timer?state.elapsed / (s.minutes * 60):0) : 0})"></span></div>`).join('')}</div><div class="story-topline"><span class="story-avatar" style="--block-color:${colorOf(block).bg}">${symbol(block)}</span><div class="story-owner"><b>${esc(block.title)}</b><span>${player.preview ? 'Vorschau' : `${player.b + 1} von ${player.blocks.length} Bausteinen`}</span></div><button class="story-pause round-button" data-story="pause" aria-label="${state.paused ? 'Fortsetzen' : 'Pausieren'}">${icon(state.paused ? 'play' : 'pause')}</button><button class="story-close round-button" data-story="close" aria-label="Story schließen">${icon('close')}</button></div></header>
   <div class="story-scroll"><div class="story-content">${storyContent()}</div>${responseView()}</div><footer class="story-footer"><span class="story-clock">${icon('timer')}<b>${stepNow().timer?time(Math.ceil(Math.max(0, stepNow().minutes * 60 - state.elapsed))):'In deinem Tempo'}</b></span><span class="story-status">${state.paused ? 'Pausiert' : 'In deinem Tempo'}</span><button class="story-help" data-story="help" aria-label="Hilfe und Schrittdetails">${icon('info')}</button></footer><button class="sr-only" data-story="prev-step">Schritt neu starten</button><button class="sr-only" data-story="next-step">Nächster Schritt</button><button class="sr-only" data-story="prev-block">Vorheriger Baustein</button><button class="sr-only" data-story="next-block">Nächster Baustein</button></section></div>`;
@@ -174,6 +196,7 @@ function updateVisuals() {
   $('.story-face', overlay)?.classList.toggle('is-paused', !running());
   $('.story-symbol .buddy-character',overlay)?.classList.toggle('buddy-speaking',Boolean(state.speaking&&running()));
   setBuddySpeaking($('.story-symbol',overlay),Boolean(state.speaking&&speechSession?.audible&&running()));
+  if(stepNow().guidance){const cues=guidanceCues(stepNow().guidance),cue=cues.findLast(c=>c.at<=state.elapsed),el=$('.guided-cue',overlay);if(el){const text=cue?(cue.count?'Wiederholung '+cue.count+' / '+stepNow().guidance.count:cue.text):'Gleich geht’s los …';if(el.textContent!==text)el.textContent=text;}}
   syncSpeech();
   setMusic(blockNow().music || 'none', .25, running() && !state.recording, Boolean(state.speaking));
 }
@@ -185,13 +208,13 @@ function updateClock() {
     state.recordSeconds += delta;
     const small = $('.memo-record small', overlay); if (small) small.textContent = time(Math.floor(state.recordSeconds));
   }
-  if (running()) {
+  if (running() && !state.speechLoading) {
     const duration = stepNow().minutes * 60;
     state.elapsed = stepNow().timer?Math.min(duration,state.elapsed+delta):state.elapsed+delta;
   }
     if (stepNow().timer && !state.paused && !player.hold && !document.hidden && state.elapsed >= stepNow().minutes*60 && !state.speaking) {
       state.paused = true;
-      if (stepNow().input === 'none' && (!stepNow().research || state.outcome === 'success' && researchFor(stepNow()))) { state.finished = true; state.skipped=false;nextStep(); return; }
+      if (stepNow().input === 'none' && (!stepNow().research || state.outcome === 'success' && researchFor(stepNow(),stateNow()))) { state.finished = true; state.skipped=false;nextStep(); return; }
       renderPlayer();
     }
   updateVisuals();if(now-lastCheckpoint>5000){checkpoint();lastCheckpoint=now;}
@@ -224,7 +247,7 @@ function checkpoint(){if(player&&!player.preview&&!player.done)player.onCheckpoi
 function moveTo(b, s) {
   if (!player || player.done || player.transitioning || stateNow().recording || stateNow().requesting || stateNow().photoLoading || b < 0 || b >= player.blocks.length) return;
   if(stateNow().recording)return;
-  cancelSpeech();
+  cancelSpeech();cancelResearch();
   const oldB = player.b, oldFace = $('.story-face', overlay);
   player.b = b; player.s = s; player.hold = false; player.lastLeft=null; gesture = null; lastTick = performance.now();
   Object.assign(stateNow(),{spoken:false,speaking:false,paused:false,elapsed:0,speechPart:0,scrollTop:0});
@@ -254,7 +277,7 @@ function advanceStep(){
  if(!player||player.done||player.transitioning)return;
  const state=stateNow();if(state.finalizing||state.requesting||state.photoLoading)return;
  if(state.recording){state.advanceAfterRecording=true;stopRecording();return;}
- const valid=!stepNow().research||Boolean(researchFor(stepNow())&&state.outcome==='success');
+ const valid=!stepNow().research||Boolean(researchFor(stepNow(),stateNow())&&state.outcome==='success');
  state.finished=Boolean(valid);state.skipped=!valid;checkpoint();nextStep();
 }
 function nextStep() {
@@ -271,7 +294,7 @@ function prevStep(){
 }
 function nextBlock() { if(!player||player.done||player.transitioning||stateNow().recording||stateNow().requesting||stateNow().photoLoading)return;if(!stateNow().finished)stateNow().skipped=true; if (player.b < player.blocks.length - 1) moveTo(player.b + 1, 0); else { stopRecording(); player.done = true; renderFinish(); } }
 function renderFinish(){
- reportRun();stopMusic();cancelSpeech();const count=Object.values(player.states).filter(s=>s.finished).length,celebrate=!player.preview&&count>0;
+ cancelResearch();reportRun();stopMusic();cancelSpeech();const count=Object.values(player.states).filter(s=>s.finished).length,celebrate=!player.preview&&count>0;
  overlay.innerHTML='<div class="story-viewport"><section class="story-finish '+(celebrate?'celebrating':'')+'">'+lavaMarkup({blocks:player.blocks},{tint:.55,background:true})+'<button class="round-button story-close" data-story="close" aria-label="Schließen">'+icon('close')+'</button>'+(celebrate?'<div class="confetti" aria-hidden="true">'+Array.from({length:28},(_,i)=>'<i style="--x:'+((i*37)%100)+'%;--i:'+i+';--r:'+(i*29)+'deg"></i>').join('')+'</div>':'')+'<div class="finish-art">'+buddyArt()+'</div><span class="story-eyebrow">'+(player.preview?'DEINE VORSCHAU':celebrate?'DIESER MOMENT GEHÖRT DIR':'IN DEINEM TEMPO')+'</span><h1>'+(player.preview?'So beginnt<br>dein Morgen.':celebrate?'Hallo Tag.<br>Ich bin da.':'Bis zu deinem<br>nächsten Moment.')+'</h1><p>'+(player.preview?'Deine Einstellungen sind bereit.':celebrate?'Nimm dieses Gefühl mit in deinen Tag.':'Dieser Durchlauf wurde ausgelassen.')+'</p><button class="finish-button" data-story="close">'+(player.returnLabel||(player.preview?'Zurück zum Editor':'Zurück zu Home'))+icon('check')+'</button></section></div>';
  animateScreen($('.story-finish',overlay),'tab');
 }
@@ -309,12 +332,14 @@ overlay.addEventListener('click', event => {
   if (action === 'prev-step') prevStep();
   if (action === 'next-block') nextBlock();
   if (action === 'prev-block') moveTo(player.b - 1, 0);
-  if (action === 'retry') { state.outcome = 'success'; renderPlayer(); }
+  if(action==='retry'){cancelResearch();state.researchStatus='idle';state.researchError=null;renderPlayer();}
+  if(action==='speech-retry'){state.speechError=null;state.spoken=false;state.paused=false;renderPlayer();}
+  if(action==='speech-text'){cancelSpeech();state.speechError=null;state.speechLoading=false;state.textOnly=true;state.paused=false;renderPlayer();}
   if (action === 'help') { state.helpWasPaused=state.paused;state.paused = true; showStoryHelp(); }
 });
 function showStoryHelp() {
   const pane = document.createElement('div'); pane.className = 'story-help-pane'; pane.dataset.interactive = '';
-  pane.innerHTML = `<h2>Dein Tempo. Dein Morgen.</h2><details class="story-settings"><summary>Einstellungen dieses Schritts</summary><dl><dt>Ausgabe</dt><dd>${labels[blockNow().output]}</dd><dt>Eingabe morgens</dt><dd>${{none:'Keine',text:'Textfeld',voice:'Memo',photo:'Foto'}[stepNow().input]}</dd><dt>Dauer</dt><dd>${stepNow().minutes} Min. · ${stepNow().timer?'Timer an':'Ohne Timer'}</dd><dt>Recherche</dt><dd>${stepNow().research?'An':'Aus'}</dd></dl><div class="formatted-text">${renderRich(stepNow().message.text)}</div></details><p>Links tippen: Schritt neu starten. Direkt noch einmal: vorheriger Schritt.<br>Rechts tippen: nächster Schritt.<br>Wischen: Baustein wechseln.<br>Gedrückt halten: kurz pausieren.</p>${player.preview&&stepNow().research ? '<label>Demo-Ergebnis<select id="story-outcome"><option value="success">Ergebnis vorhanden</option><option value="empty">Keine Ergebnisse</option><option value="error">Verbindung fehlgeschlagen</option></select></label>' : ''}<button class="finish-button" id="close-story-help">Verstanden</button>`;
+  pane.innerHTML = `<h2>Dein Tempo. Dein Morgen.</h2><details class="story-settings"><summary>Einstellungen dieses Schritts</summary><dl><dt>Ausgabe</dt><dd>${labels[blockNow().output]}</dd><dt>Eingabe morgens</dt><dd>${{none:'Keine',text:'Textfeld',voice:'Memo',photo:'Foto'}[stepNow().input]}</dd><dt>Dauer</dt><dd>${stepNow().minutes} Min. · ${stepNow().timer?'Timer an':'Ohne Timer'}</dd><dt>Recherche</dt><dd>${stepNow().research?'An':'Aus'}</dd></dl><div class="formatted-text">${renderRich(stepNow().message.text)}</div></details><p>Links tippen: Schritt neu starten. Direkt noch einmal: vorheriger Schritt.<br>Rechts tippen: nächster Schritt.<br>Wischen: Baustein wechseln.<br>Gedrückt halten: kurz pausieren.</p>${player.preview&&stepNow().demoResearch ? '<label>Demo-Ergebnis<select id="story-outcome"><option value="success">Ergebnis vorhanden</option><option value="empty">Keine Ergebnisse</option><option value="error">Verbindung fehlgeschlagen</option></select></label>' : ''}<button class="finish-button" id="close-story-help">Verstanden</button>`;
   $('.story-face', overlay).append(pane);
   $('#close-story-help').onclick = () => {stateNow().paused=Boolean(stateNow().helpWasPaused);renderPlayer();};
   const select = $('#story-outcome'); if (select) { select.value = stateNow().outcome; select.onchange = () => { stateNow().outcome = select.value; }; }
@@ -355,7 +380,7 @@ document.addEventListener('keydown', event => {
 function reportRun() {
   if (!player || player.preview || player.reported || !player.onReport) return;
   player.reported = true;
-  const answers = Object.entries(player.states).map(([key,state]) => { const [b,stepIndex] = key.split(':').map(Number); return { blockTitle:player.blocks[b].title, blockId:player.blocks[b].id,symbol:player.blocks[b].symbol,sourceId:player.blocks[b].sourceId,shape:player.blocks[b].shape,theme:player.blocks[b].theme,instruction:player.blocks[b].steps[stepIndex].message?.text,input:player.blocks[b].steps[stepIndex].input,stepIndex, text:state.text, memo:state.memo, recordSeconds:state.recordSeconds, photos:state.photos,audio:state.audio,skipped:Boolean(state.skipped),finished:state.finished }; });
+  const answers = Object.entries(player.states).map(([key,state]) => { const [b,stepIndex] = key.split(':').map(Number); return { blockTitle:player.blocks[b].title, blockId:player.blocks[b].id,symbol:player.blocks[b].symbol,sourceId:player.blocks[b].sourceId,shape:player.blocks[b].shape,theme:player.blocks[b].theme,instruction:player.blocks[b].steps[stepIndex].message?.text,researchResult:state.researchResult,input:player.blocks[b].steps[stepIndex].input,stepIndex, text:state.text, memo:state.memo, recordSeconds:state.recordSeconds, photos:state.photos,audio:state.audio,skipped:Boolean(state.skipped),finished:state.finished }; });
   player.onReport({ startedAt:player.startedAt, ended:player.done,completed:player.done&&answers.filter(a=>a.finished).length===player.blocks.reduce((sum,b)=>sum+b.steps.length,0), finishedCount:answers.filter(a=>a.finished).length, totalSteps:player.blocks.reduce((sum,b)=>sum+b.steps.length,0), elapsedSeconds:Math.floor(Object.values(player.states).reduce((sum,state)=>sum+state.elapsed,0)), answers });
 }
 
@@ -375,3 +400,11 @@ function syncKeyboard(){
 }
 window.visualViewport?.addEventListener('resize',syncKeyboard);
 overlay.addEventListener('focusin',syncKeyboard);overlay.addEventListener('focusout',()=>requestAnimationFrame(syncKeyboard));
+
+async function savePlayerLocation(form,locate){
+ const owner=player,key=keyNow(),button=form.querySelector(locate?'[data-story="locate"]':'[type="submit"]');button.disabled=true;
+ try{await saveResearchPreferences(locate?{location:await requestLocation()}:{city:form.elements.city.value});if(player===owner&&keyNow()===key){stateNow().researchStatus='idle';stateNow().researchErrorCode=null;stateNow().outcome='success';renderPlayer();}}
+ catch(error){if(form.isConnected)form.querySelector('.location-status').textContent=error.message;}finally{button.disabled=false;}
+}
+overlay.addEventListener('submit',event=>{if(!event.target.matches('.research-location-form'))return;event.preventDefault();savePlayerLocation(event.target,false);});
+overlay.addEventListener('click',event=>{if(event.target.closest('[data-story="locate"]'))savePlayerLocation(event.target.closest('form'),true);});

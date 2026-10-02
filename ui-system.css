@@ -239,3 +239,34 @@ html :is(.field-input,select.field-input){border-radius:14px}
 html #appearance-dialog .look-preview{border-radius:18px}
 html .welcome-friend{padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;touch-action:manipulation}
 .welcome-friend:focus-visible{outline:2px solid var(--brand);outline-offset:4px}
+
+/* One square cover and one navigation geometry across browse and editor. */
+html .small-cover.item-cover{width:56px;height:56px;min-width:56px;min-height:56px;flex:0 0 56px;aspect-ratio:1}
+html .item-cover{position:relative;overflow:visible;isolation:isolate}
+html .item-cover>.visual-symbol{width:100%;height:100%;aspect-ratio:1;overflow:hidden;border-radius:inherit}
+.team-badge{position:absolute;z-index:1;right:-3px;bottom:-3px;display:grid;place-items:center;width:24px;height:24px;border:3px solid var(--surface-page);border-radius:50%;background:#ffb100;color:white;box-sizing:content-box;pointer-events:none}
+.team-badge svg{width:16px;height:16px;stroke-width:1.8}
+.playlist-card .team-badge,.detail-hero .team-badge,.ritual-hero .team-badge{width:26px;height:26px}
+html .bottom-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 48px;gap:2px;box-sizing:border-box}
+html .bottom-nav button{min-width:0;width:auto;padding:8px 2px;font-size:11px}
+html .bottom-nav .nav-create{color:var(--text-primary);background:transparent}
+html #app>main{padding-bottom:130px}
+html #app .actions{bottom:100px}
+#profile-sheet .history-sheet-content{min-width:0;padding-bottom:24px}
+#profile-sheet .history-card{color:var(--text-primary);background:var(--surface-raised);border-color:var(--border-subtle)}
+#profile-sheet .history-answer{color:var(--text-primary);background:var(--surface-raised);border-color:var(--border-subtle);padding:12px}
+#profile-sheet .history-answer summary{display:flex;align-items:center;gap:8px;min-width:0}
+#profile-sheet .history-answer summary>span{min-width:0;flex:1}
+#profile-sheet .history-answer summary b{overflow-wrap:anywhere}
+#profile-sheet .history-answer summary>small{max-width:80px;font-size:11px}
+#profile-sheet .history-answer summary>svg{width:16px;flex:none}
+#profile-sheet .history-detail-heading{display:flex;gap:14px;align-items:center;margin:20px 0}
+#profile-sheet .history-detail-heading h1{font-size:22px;overflow-wrap:anywhere}
+#profile-sheet .history-manage{display:flex;flex-wrap:wrap;gap:12px}
+#profile-sheet audio{max-width:100%}
+@media(max-width:360px){html .bottom-nav{grid-template-columns:repeat(3,minmax(0,1fr)) 42px}html .bottom-nav button{font-size:10px}}
+
+.ai-challenge{position:fixed;z-index:10000;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100vw;background:var(--surface-page);border-radius:16px}
+.research-sources{display:grid;gap:10px;margin-top:20px}.speech-error{padding:12px;border:1px solid var(--border-subtle);border-radius:16px;margin-bottom:16px}.speech-error .story-pill{margin:4px}
+
+.guidance-editor{margin:20px 0;padding:16px;border:1px solid var(--line,#e5deec);border-radius:18px}.guidance-editor summary{cursor:pointer;margin-bottom:12px}.guidance-editor .field-input,.research-location-form .field-input{width:100%;min-width:0;border-radius:14px}.guide-numbers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.guide-numbers label{font-size:12px}.guide-numbers input{width:100%;min-width:0}.guided-cue{font-size:22px;font-weight:700;padding:16px;border-radius:18px;background:var(--surface,#f4eef8)}.profile-settings>.field-input{width:100%;margin-bottom:12px}.profile-settings>[data-save-research],.profile-settings>[data-profile-location]{width:100%;margin:10px 0 18px}.research-location-form .story-pill{margin:8px 4px 8px 0}

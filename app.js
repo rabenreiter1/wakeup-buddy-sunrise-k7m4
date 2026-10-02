@@ -1,3 +1,4 @@
+import {guidanceEditor} from './guidance.js';
 import {saveLibraryBlock} from './repository.js';
 import {MAX_STEPS} from './limits.js';
 import './theme.js';
@@ -11,7 +12,7 @@ import { readDraft, writeDraft, listBlocks, saveBlock } from './storage.js';
 import { icon } from './icons.js';
 import { attachReorder } from './reorder.js';
 import { configureExperience, openRitual, openStory } from './experience.js';
-import { configureProduct, openProduct, finishEditor, leaveEditor } from './product.js';
+import { configureProduct, openProduct, finishEditor, leaveEditor, navigationMarkup, openCreateMenu } from './product.js';
 import { TAGS, TRACKS } from './catalog.js';
 import { richField, hydrateRich, renderRich } from './richtext.js';
 import { audition, stopAudition } from './audio.js';
@@ -69,9 +70,9 @@ function stepView(step, index) {
   return `<section class="step ${open ? 'open' : ''}" data-step="${step.id}"><div class="step-head"><button class="icon-btn drag-handle" data-drag="${step.id}" aria-label="Schritt ${index + 1} verschieben" aria-describedby="drag-help" ${draft.steps.length === 1 ? 'disabled' : ''}>${icon('grip')}</button><button class="step-expand" data-action="expand" data-id="${step.id}" aria-expanded="${open}"><span class="step-number">${String(index + 1).padStart(2, '0')}</span><span class="grow"><span class="step-title">Schritt ${index + 1}</span></span><span class="step-duration" data-head-duration="${step.id}">${step.minutes} Min.</span>${icon(open ? 'up' : 'down')}</button><button class="icon-btn" data-action="remove-step" data-id="${step.id}" aria-label="Schritt ${index + 1} löschen" ${draft.steps.length === 1 ? 'disabled' : ''}>${icon('trash')}</button></div>
   ${open ? `<div class="step-body"><label class="label" for="instruction-${step.id}">${step.research ? 'Rechercheauftrag' : 'Anweisung'}</label>${richField({ id:`instruction-${step.id}`, value:messageText(step), attrs:`data-instruction="${step.id}"`, placeholder:step.research?'Was soll der Buddy recherchieren?':'Was soll in diesem Schritt passieren?', label:step.research?'Rechercheauftrag':'Anweisung' })}<p class="character-count" id="instruction-count-${step.id}">${messageText(step).length} / 1.200</p>
   <label class="switch-row research-row"><span class="switch-copy">${icon('globe')} Im Internet recherchieren</span><input class="switch" type="checkbox" data-research="${step.id}" ${step.research ? 'checked' : ''}></label>
-  <p class="research-explanation">${step.research?'Dein Text ist der Rechercheauftrag. Verwendet wird das recherchierte Ergebnis.':'Dein Text wird unverändert angezeigt oder vorgelesen.'}</p><span class="label">Deine Eingabe morgens</span><div class="input-types" role="group" aria-label="Eingabe im Ritual">${Object.entries(inputNames).map(([key, label]) => `<button data-input="${key}" data-id="${step.id}" aria-pressed="${step.input === key}">${icon({ none: 'minus', text: 'text', voice: 'mic', photo: 'camera' }[key])}${label}</button>`).join('')}</div>
+  <p class="research-explanation">${step.research?'Dein Text ist der Rechercheauftrag. {{ort}} verwendet deinen gespeicherten Ort, {{aktien}} deine Marktinteressen. Verwendet wird das recherchierte Ergebnis.':'Dein Text wird unverändert angezeigt oder vorgelesen.'}</p><span class="label">Deine Eingabe morgens</span><div class="input-types" role="group" aria-label="Eingabe im Ritual">${Object.entries(inputNames).map(([key, label]) => `<button data-input="${key}" data-id="${step.id}" aria-pressed="${step.input === key}">${icon({ none: 'minus', text: 'text', voice: 'mic', photo: 'camera' }[key])}${label}</button>`).join('')}</div>
   <div class="duration-row"><label class="label" for="duration-${step.id}">Dauer</label><span class="duration-value" id="duration-value-${step.id}">${step.minutes} <small>Min.</small></span></div><input id="duration-${step.id}" aria-label="Zeit für Schritt ${index + 1} in Minuten" data-duration="${step.id}" type="range" min="1" max="20" step="1" value="${step.minutes}" style="--fill:${(step.minutes - 1) / 19 * 100}%"><div class="range-labels"><span>1 Min.</span><span>20 Min.</span></div>
-  <label class="switch-row"><span class="switch-copy">${step.input==='none'?'Nach Ablauf automatisch weiter':'Nach Ablauf auf deine Antwort warten'}</span><input class="switch" type="checkbox" data-timer="${step.id}" ${step.timer ? 'checked' : ''} ${step.input!=='none'?'disabled':''}></label></div>` : ''}</section>`;
+  ${guidanceEditor(step)}<label class="switch-row"><span class="switch-copy">${step.input==='none'?'Nach Ablauf automatisch weiter':'Nach Ablauf auf deine Antwort warten'}</span><input class="switch" type="checkbox" data-timer="${step.id}" ${step.timer ? 'checked' : ''} ${step.input!=='none'||step.guidance?'disabled':''}></label></div>` : ''}</section>`;
 }
 function contentView() {
   return `${editingExisting?'<p class="shared-edit-note">Änderungen gelten in allen Ritualen, die diesen Baustein verwenden.</p>':''}<div class="editor-identity"><button type="button" class="identity-look" data-action="appearance" aria-label="Symbol und Farbe ändern"><span class="appearance-sample" style="${visualStyle(draft)}">${symbol(draft)}</span><span class="edit-badge" aria-hidden="true">${icon('edit')}</span></button><div class="identity-title"><label class="label" for="title">Titel des Bausteins</label><input type="text" id="title" class="title-input compact-title" maxlength="20" placeholder="Worum geht’s?" autocomplete="off" value="${esc(draft.title)}"><div class="meta-row"><span id="title-count">${draft.title.length} / 20</span></div></div></div>
@@ -86,7 +87,7 @@ function outputView() {
   const descriptions = { buddy: 'Dein Buddy liest den Inhalt vor.', text: 'Du liest den Inhalt selbst.' };
   return `<div class="output-header"><h1>${esc(draft.title)}</h1><p class="small muted">${draft.steps.length} ${draft.steps.length === 1 ? 'Schritt' : 'Schritte'} · ${total()} Minuten</p></div><h2>Ausgabe für alle Schritte</h2><div class="output-options">${Object.entries({buddy:'Audio',text:'Text'}).map(([key, label]) => `<button class="output-choice" data-output="${key}" aria-pressed="${draft.output === key}"><span class="output-top">${icon({ buddy: 'audio', text: 'lines' }[key])}<span class="output-name">${label}</span><span class="radio" aria-hidden="true">${draft.output === key ? icon('check') : ''}</span></span><span class="output-detail">${descriptions[key]}</span></button>`).join('')}</div>
   <p class="output-explanation">Ohne Recherche bleibt dein Text unverändert. Mit Recherche wird im jeweiligen Schritt das Ergebnis angezeigt oder vorgelesen.</p>
-  ${hasResearch(draft) ? '<p class="research-availability">Live-Recherche ist in diesem Prototyp noch nicht verbunden. Die Vorschau zeigt nur vorhandene Beispielergebnisse.</p>' : ''}
+  ${hasResearch(draft) ? '<p class="research-availability">Recherche startet beim jeweiligen Schritt und benötigt eine Internetverbindung sowie die freigeschaltete KI-Anbindung.</p>' : ''}
   <button class="music-setting" data-action="music">${icon('music')}<span>Hintergrundmusik<small>${TRACKS.find(t=>t.id===draft.music)?.title || 'Keine Musik'}</small></span>${icon('arrow')}</button>
   <button class="editor-preview secondary" data-action="launch-preview">${icon('play')} Vorschau</button><div class="actions two"><button class="secondary" data-page="1">${icon('back')} Zurück</button><button class="primary" data-action="save" ${saving ? 'disabled' : ''}>${saving ? 'Speichert …' : 'Speichern'} ${icon('check')}</button></div><p class="gate-hint" id="gate-hint"></p>`;
 }
@@ -99,7 +100,7 @@ function savedView() {
 function render() {
   const previousPage=app.dataset.page;
   if(draft.page===3)draft.page=2;
-  app.innerHTML = `${header()}<main>${draft.page === 1 ? contentView() : draft.page === 2 ? outputView() : savedView()}<div class="draft-status" ${storageError ? '' : 'hidden'} role="alert">${esc(storageError)}${storageError?'<button data-action="retry-save">Erneut versuchen</button><button data-action="export">Entwurf sichern</button>':''}</div></main>`;
+  app.innerHTML = `${header()}<main>${draft.page === 1 ? contentView() : draft.page === 2 ? outputView() : savedView()}<div class="draft-status" ${storageError ? '' : 'hidden'} role="alert">${esc(storageError)}${storageError?'<button data-action="retry-save">Erneut versuchen</button><button data-action="export">Entwurf sichern</button>':''}</div></main>${navigationMarkup()}`;
   $('.description-section')?.addEventListener('toggle', event => { descriptionOpen = event.target.open; });
   $('.editor-tags')?.addEventListener('toggle', event => { tagsOpen = event.target.open; });
   hydrateRich(app);translateUI(app);
@@ -107,6 +108,11 @@ function render() {
   app.dataset.page=String(draft.page);
   if(previousPage!==String(draft.page))animateScreen(app,Number(previousPage)>Number(draft.page)?'back':'forward');
 }
+app.addEventListener('click',async event=>{
+ const button=event.target.closest('.bottom-nav button');if(!button)return;
+ try{await persist();if(storageError)throw new Error(storageError);if(button.dataset.p==='create')await openCreateMenu();else if(button.dataset.route){await openProduct(button.dataset.route);location.hash=button.dataset.route;}}
+ catch{announce('Entwurf konnte nicht gespeichert werden. Bitte erneut versuchen.');}
+});
 function updateGates() {
   const issues = contentIssues(draft);
   for(const button of app.querySelectorAll('[data-action=save],[data-action=launch-preview]'))button.disabled=saving||issues.length>0||Boolean(outputIssue(draft));
@@ -131,6 +137,8 @@ function goPage(page) {
 
 app.addEventListener('input', event => {
   const target = event.target;
+  if(target.dataset.guideField){const g=stepById(target.dataset.guideStep).guidance;g[target.dataset.guideField]=target.dataset.guideField==='intro'?target.value:Number(target.value);updateGates();persist();}
+  if(target.dataset.guidePhases){stepById(target.dataset.guidePhases).guidance.cues=target.value.split('\n').filter(line=>line.trim()).map(line=>{const split=line.indexOf('|');return {at:split<0?-1:Number(line.slice(0,split).trim()),text:split<0?line:line.slice(split+1).trim()};});updateGates();persist();}
   if (target.id === 'title') { draft.title = target.value; $('#title-count').textContent = `${target.value.length} / 20`; updateGates(); persist(); }
   if (target.id === 'description') { draft.description = target.value; $('#description-count').textContent = `${target.value.length} / 500`; persist(); }
   if (target.dataset.instruction) {
@@ -146,7 +154,8 @@ app.addEventListener('input', event => {
 });
 app.addEventListener('change', async event => {
   const target = event.target;
-  if (target.dataset.research) { stepById(target.dataset.research).research = target.checked; commit(); }
+  if(target.dataset.guideMode){const step=stepById(target.dataset.guideMode);if(target.value==='none')delete step.guidance;else{step.guidance=target.value==='repetitions'?{mode:'repetitions',count:5,start:12,interval:6,intro:'Wir beginnen gleich. Finde einen bequemen Stand.'}:{mode:'phases',cues:[{at:0,text:'Nimm dir einen Moment zum Ankommen.'},{at:30,text:'Spüre deine Füße auf dem Boden.'}]};step.timer=true;}commit();}
+  if (target.dataset.research) { stepById(target.dataset.research).research = target.checked;if(target.checked)delete stepById(target.dataset.research).guidance; commit(); }
   if (target.dataset.timer) { stepById(target.dataset.timer).timer = target.checked; persist(); }
 
 
@@ -157,7 +166,7 @@ app.addEventListener('click', async event => {
   const data = button.dataset;
   if (data.tag) { draft.tags = draft.tags.includes(data.tag) ? draft.tags.filter(t=>t!==data.tag) : [...draft.tags,data.tag].slice(0,3); commit(); return; }
   if (data.page) { goPage(Number(data.page)); return; }
-  if (data.input) { stepById(data.id).input = data.input; commit(); return; }
+  if (data.input) { stepById(data.id).input = data.input;if(data.input!=='none')delete stepById(data.id).guidance; commit(); return; }
   if (['buddy','text'].includes(data.output)) { draft.output = data.output; commit(); return; }
   const action = data.action;
   if (action === 'back') { goPage(draft.page === 'saved' ? 1 : Math.max(1, draft.page - 1)); return; }
@@ -205,7 +214,7 @@ function exportDraft() {
 async function showDemo() {
   let blocks = [];
   try { blocks = (await listBlocks()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); } catch { /* Error already explained by persistence banner. */ }
-  demo.innerHTML = `<div class="dialog-head"><h2 id="demo-title">Dein lokaler MVP</h2><button class="icon-btn" data-demo="close" aria-label="Schließen">${icon('close')}</button></div><p class="small muted">Freie KI-Recherche ist simuliert. Memos nehmen dein Mikrofon lokal auf. Audio nutzt die Stimme deines Browsers; Musik und Wecktöne sind hörbar. Deine Bausteine werden nur in diesem Browser gespeichert.</p><h3 style="margin-top:21px">Gespeicherte Bausteine</h3><div class="saved-list">${blocks.length ? blocks.map(b => `<button class="saved-entry" data-load="${b.id}"><b>${esc(b.title)}</b><span>${b.steps.length} Schritte · ${outputNames[b.output]}</span></button>`).join('') : '<p class="small muted">Noch kein Baustein gespeichert.</p>'}</div><div class="saved-actions"><button class="secondary" data-demo="new">Neuen Baustein beginnen</button><button class="quiet" data-demo="export">Aktuellen Stand als JSON sichern</button></div>`;
+  demo.innerHTML = `<div class="dialog-head"><h2 id="demo-title">Dein lokaler MVP</h2><button class="icon-btn" data-demo="close" aria-label="Schließen">${icon('close')}</button></div><p class="small muted">Recherche und Buddy-Stimmen benötigen die eingerichtete KI-Anbindung. Bei Ausfällen kannst du Text weiterlesen oder einen Recherche-Schritt überspringen. Memos, Fotos, Antworten und Bausteine bleiben in diesem Browser.</p><h3 style="margin-top:21px">Gespeicherte Bausteine</h3><div class="saved-list">${blocks.length ? blocks.map(b => `<button class="saved-entry" data-load="${b.id}"><b>${esc(b.title)}</b><span>${b.steps.length} Schritte · ${outputNames[b.output]}</span></button>`).join('') : '<p class="small muted">Noch kein Baustein gespeichert.</p>'}</div><div class="saved-actions"><button class="secondary" data-demo="new">Neuen Baustein beginnen</button><button class="quiet" data-demo="export">Aktuellen Stand als JSON sichern</button></div>`;
   demo.showModal();
 }
 demo.addEventListener('click', async event => {

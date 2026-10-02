@@ -1,7 +1,8 @@
 import {MAX_BLOCKS,isOwnRoutine} from './limits.js';
 import {captureSchedule,migrateSingleDailyPlan,weeklyConflicts,dayHasStarted} from './planning.js';
 import { readState, writeState, readRitual, listBlocks, saveBlock, writeLibraryChange } from './storage.js';
-import { CATALOG_BLOCKS, CATALOG_RITUALS, blockIdentity, defaultAlarm } from './catalog.js';
+import { CATALOG_BLOCKS, CATALOG_RITUALS } from './demo-catalog.js';
+import { blockIdentity, defaultAlarm } from './catalog.js';
 import { restoreDraft } from './model.js';
 import { visualRecipe } from './landscape.js';
 let data, queue = Promise.resolve();
@@ -79,7 +80,7 @@ export function markCustomized(item){
 }
 export function contentSignature(block){
  const b=restoreDraft(block);
- return JSON.stringify([b.title,b.description,b.symbol,b.theme,b.tags,b.music,b.output,b.steps.map(s=>[s.message,s.input,s.research,s.minutes,s.timer])]);
+ return JSON.stringify([b.title,b.description,b.symbol,b.theme,b.tags,b.music,b.output,b.steps.map(s=>[s.message,s.input,s.research,s.minutes,s.timer,s.guidance||null])]);
 }
 async function atomicChange(next,change){
  captureSchedule(next);
