@@ -30,6 +30,19 @@
 .thinking-dots{letter-spacing:3px;animation:buddy-thinking 1s ease-in-out infinite alternate}
 @keyframes buddy-thinking{from{opacity:.3;transform:translateY(1px)}to{opacity:1;transform:translateY(-2px)}}
 @media(prefers-reduced-motion:reduce){.thinking-dots{animation:none}}
+#story-overlay .story-face{backface-visibility:hidden;transform-origin:50% 50%;will-change:transform}
+#story-overlay .story-response.input-none{display:none!important}
+#story-overlay .story-clock[hidden]{display:none}
+#story-overlay .story-content{position:relative}
+#story-overlay .buddy-preparing{position:absolute;z-index:3;right:12%;top:35px;min-height:0;display:grid;width:68px;height:44px;border-radius:50%;background:#fff;box-shadow:0 3px 14px #352a4810;pointer-events:none}
+#story-overlay .buddy-preparing[hidden]{visibility:hidden}
+#story-overlay .buddy-preparing:before,#story-overlay .buddy-preparing:after{content:'';position:absolute;background:#fff;border-radius:50%;width:11px;height:11px;bottom:-10px;left:9px}
+#story-overlay .buddy-preparing:after{width:6px;height:6px;bottom:-18px;left:2px}
+#story-overlay .thinking-dots{display:flex;gap:5px;animation:none}
+#story-overlay .thinking-dots i{width:6px;height:6px;border-radius:50%;background:#806590;animation:thought-dot 1.2s ease-in-out infinite}
+#story-overlay .thinking-dots i:nth-child(2){animation-delay:.16s}#story-overlay .thinking-dots i:nth-child(3){animation-delay:.32s}
+@keyframes thought-dot{0%,70%,100%{opacity:.3;transform:translateY(0)}35%{opacity:1;transform:translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){#story-overlay .thinking-dots i{animation:none}}
 .guided-session{padding:20px;margin:0 0 22px;border:1px solid #ffffff80;border-radius:24px;background:#ffffff60;text-align:center;min-height:130px}
 .guide-set-label{font-size:13px;font-weight:600;opacity:.75;letter-spacing:.3px}
 .guide-counter{display:block;font-size:64px;line-height:1.15;font-variant-numeric:tabular-nums;margin:8px 0}

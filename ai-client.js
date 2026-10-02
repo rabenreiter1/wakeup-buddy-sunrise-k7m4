@@ -1,5 +1,5 @@
 import {AI_CONFIG} from './ai-config.js';
-let auth=null,scriptPending=null;
+let auth=null,scriptPending=null,authPending=null;
 export class AIError extends Error{constructor(message,code='unavailable'){super(message);this.code=code;}}
 export const aiConfigured=()=>Boolean(AI_CONFIG.apiBase&&AI_CONFIG.turnstileSiteKey);
 function loadTurnstile(){
@@ -22,8 +22,8 @@ async function request(path,input,{signal,token}={}){
 }
 async function authorization(signal){
  if(auth?.expiresAt>Date.now()+10000)return auth.token;
- await loadTurnstile();signal?.throwIfAborted();
- auth=await request('/api/session',{token:await challenge(signal)},{signal});return auth.token;
+ if(!authPending)authPending=(async()=>{await loadTurnstile();signal?.throwIfAborted();auth=await request('/api/session',{token:await challenge(signal)},{signal});return auth.token;})().finally(()=>{authPending=null;});
+ const token=await authPending;signal?.throwIfAborted();return token;
 }
 export async function askAI(path,input,signal){
  if(!aiConfigured())throw new AIError('Die KI-Anbindung ist noch nicht freigeschaltet.','not_configured');
