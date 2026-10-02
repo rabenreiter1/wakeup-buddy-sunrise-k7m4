@@ -5,14 +5,14 @@ let session,drag,previousFocus;
 export function showAlarmDemo(ritual,onStart){
  closeAlarm();unlockAudio();stopMusic();previousFocus=document.activeElement;lockAppearance();setSurfaceColor('#000000');
  session={ritual:structuredClone(ritual),onStart};
- document.body.classList.add('alarm-open');root.hidden=false;root.tabIndex=-1;root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','Wecker-Demo, 07:00. Wake Up öffnet dein Ritual.');
+ document.documentElement.classList.add('alarm-open');document.body.classList.add('alarm-open');root.hidden=false;root.tabIndex=-1;root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','Wecker-Demo, 07:00. Wake Up öffnet dein Ritual.');
  root.innerHTML='<section class="alarm-phone"><img class="alarm-reference" src="./assets/alarm-iphone-demo.png" alt="Mornings matter. 07:00. WakeupBuddy." draggable="false"><button class="alarm-wake" data-alarm="wake" aria-label="Wake Up – Ritual starten"></button><div class="alarm-stop-track"><span class="alarm-stop-label" aria-hidden="true">slide to stop</span><button class="alarm-stop-thumb" data-alarm="stop" aria-label="Demo beenden: nach rechts schieben oder Eingabetaste drücken"><span aria-hidden="true"></span></button></div></section>';
  const shell=document.querySelector('#product-app');if(shell)shell.inert=true;
  root.focus({preventScroll:true});startAlarm(session.ritual.alarm?.tone||'sunrise');
 }
 function wake(){if(!session)return;const {ritual,onStart}=session;closeAlarm();onStart(ritual);}
 export function closeAlarm(){
- const active=Boolean(session);stopAlarm();drag=null;session=null;root.hidden=true;root.innerHTML='';document.body.classList.remove('alarm-open');
+ const active=Boolean(session);stopAlarm();drag=null;session=null;root.hidden=true;root.innerHTML='';document.documentElement.classList.remove('alarm-open');document.body.classList.remove('alarm-open');
  if(active){const shell=document.querySelector('#product-app');if(shell)shell.inert=false;unlockAppearance();}
  if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});previousFocus=null;
 }

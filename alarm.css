@@ -1,5 +1,9 @@
 /* Preserve the supplied iPhone artwork and button coordinates without cropping. */
-body.alarm-open{overflow:hidden!important;background:#000}
+/* Safari samples the document and fixed headers, including those beneath overlays. */
+html.alarm-open,html.alarm-open body{background:#000!important;color-scheme:dark!important;overscroll-behavior:none}
+body.alarm-open{overflow:hidden!important}
+html.alarm-open #product-app,html.alarm-open #app,html.alarm-open .desktop-brand{visibility:hidden}
+#alarm-overlay::before{content:"";position:fixed;top:0;left:0;right:0;height:max(2px,env(safe-area-inset-top));background:#000;pointer-events:none;z-index:1}
 #alarm-overlay{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:none;outline:none}
 #alarm-overlay[hidden]{display:none}
 #alarm-overlay .alarm-phone{position:relative;width:min(100vw,calc(100dvh * 946 / 2048));height:min(100dvh,calc(100vw * 2048 / 946));aspect-ratio:946 / 2048;display:block;padding:0;border:0;border-radius:0;box-shadow:none;background:#000;flex:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
