@@ -10,7 +10,7 @@ export const selectionCircle=checked=>`<span class="selection-circle ${checked?'
 export function timeWheel(time='07:00',hour12=false){
  const [h,m]=time.split(':').map(Number),column=(kind,label,values,index)=>{
   // Equal cycles on either side preserve native momentum through 59 → 00.
-  const cycles=Math.max(9,Math.ceil(180/values.length)*2+1),base=Math.floor(cycles/2)*values.length;
+  const cycles=kind==='period'?1:Math.max(9,Math.ceil(180/values.length)*2+1),base=Math.floor(cycles/2)*values.length;
   return `<div class="time-wheel-column" data-wheel="${kind}" data-count="${values.length}" data-base="${base}" data-index="${index}" role="spinbutton" aria-label="${label}" aria-valuemin="${kind==='hour'&&hour12?1:0}" aria-valuemax="${values.length-(kind==='hour'&&hour12?0:1)}" aria-valuenow="${kind==='hour'&&hour12?index+1:index}" tabindex="0">${Array.from({length:cycles*values.length},(_,i)=>`<div class="time-wheel-option" data-wheel-index="${i}" aria-hidden="true">${values[i%values.length]}</div>`).join('')}</div>`;
  };
  return `<div class="time-wheel" data-hour12="${hour12}"><input type="hidden" name="time" value="${time}"><div class="time-wheel-highlight" aria-hidden="true"></div>${column('hour','Stunden',Array.from({length:hour12?12:24},(_,i)=>String(hour12?i+1:i).padStart(2,'0')),hour12?(h+11)%12:h)}<span class="time-wheel-colon" aria-hidden="true">:</span>${column('minute','Minuten',Array.from({length:60},(_,i)=>String(i).padStart(2,'0')),m)}${hour12?column('period','Tageshälfte',['AM','PM'],h>=12?1:0):''}</div>`;

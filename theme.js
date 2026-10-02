@@ -11,7 +11,8 @@ export function applyAppearance(date=new Date(),manual=false){
 }
 export function setAppearance(value,{manual=false}={}){mode=['off','on','auto'].includes(value)?value:'off';applyAppearance(new Date(),manual);}
 export function lockAppearance(){applyAppearance();locked=true;}
-export function unlockAppearance(){locked=false;applyAppearance();}
+export function setSurfaceColor(color){document.querySelector('meta[name=theme-color]')?.setAttribute('content',color);document.documentElement.style.backgroundColor=color;}
+export function unlockAppearance(){locked=false;document.documentElement.style.backgroundColor='';applyAppearance();}
 try{setAppearance((await readState('product-v3'))?.profile?.appearance);}catch{applyAppearance();}
 setInterval(()=>applyAppearance(),30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)applyAppearance();});

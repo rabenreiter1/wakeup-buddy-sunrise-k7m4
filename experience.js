@@ -4,7 +4,7 @@ import {speak,speakGuide,preloadSpeech,guideText,warmPreviewAudio} from './speec
 import {research} from './ai-client.js';
 import {readState,writeState} from './storage.js';
 import {animateScreen} from './sheets.js';
-import {lockAppearance,unlockAppearance} from './theme.js';
+import {lockAppearance,unlockAppearance,setSurfaceColor} from './theme.js';
 import { buddyArt,selectedBuddy,setBuddySpeaking,buddySpeechBoundary } from './buddies.js';
 import { localPhoto } from './media.js';
 import { locale, translateUI } from './i18n.js';
@@ -50,7 +50,7 @@ function stateAt(owner,b,s) {
   return owner.states[key];
 }
 function stateNow(){return stateAt(player,player.b,player.s);}
-function running() { return player && !player.done && !player.transitioning && !player.hold && !document.hidden && !stateNow().paused && !['loading','error'].includes(stateNow().researchStatus) && !stateNow().speechError && (!stepNow().timer || stateNow().elapsed < stepNow().minutes * 60 || stateNow().speaking); }
+function running() { return player && !player.done && !player.transitioning && !player.hold && !document.hidden && !stateNow().paused && !['loading','error'].includes(stateNow().researchStatus) && !stateNow().speechError && (stateNow().elapsed < stepNow().minutes * 60 || stateNow().recording || stateNow().finalizing); }
 function ready() { const state = stateNow(); return stepNow().input === 'none' || stepNow().input === 'text' && state.text.trim() || stepNow().input === 'voice' && state.memo && !state.recording || stepNow().input === 'photo' && state.photos.length; }
 export function openStory(blocks, options = {}) {
   if (!blocks.length) return;
@@ -154,14 +154,13 @@ async function warmAhead(){
  }catch{/* Foreground playback exposes errors and an explicit retry. */}finally{owner.warming=false;}
 }
 function stepStage(){const n=blockNow().steps.length;return n===1?(stepNow().research?'Dein Briefing':'Dein Moment'):player.s===0?'Vorbereiten':player.s===n-1&&stepNow().input!=='none'?'Festhalten':'Durchführen';}
-function nextLabel(){return stepNow().input!=='none'?'Antwort übernehmen':player.s<blockNow().steps.length-1?'Zum nächsten Schritt':player.b<player.blocks.length-1?'Zum nächsten Baustein':'Abschließen';}
 function storyContent(){
  const step=stepNow(),block=blockNow(),state=stateNow(),result=researchFor(step,state);
  const issue=step.research&&(state.outcome!=='success'||!result);
- const body=issue?(state.researchErrorCode==='location_required'?locationForm():state.researchStatus==='loading'?'<h2>Recherche läuft …</h2><p>Deine Zeit startet, sobald das Ergebnis da ist.</p><button class="story-pill" data-story="skip">Überspringen</button>':'<h2>Recherche nicht verfügbar</h2><p>'+esc(state.researchError||'Es liegt noch kein Ergebnis vor.')+'</p><button class="story-pill" data-story="retry">Erneut versuchen</button><button class="story-pill" data-story="skip">Überspringen</button>'):'<div class="spoken-copy" data-user-content>'+renderRich(outputText())+'</div>'+(result?'<div class="research-sources"><small>'+esc(result.preview?'Festes Vorschau-Beispiel · keine aktuellen Daten':step.demoResearch?'Redaktionelles Beispiel · 19.03.2025':'Recherchiert: '+new Date(result.retrievedAt).toLocaleString(locale()))+'</small>'+result.sources.map(source=>'<a class="story-source" href="'+esc(source.url)+'" target="_blank" rel="noopener noreferrer" data-interactive>'+esc(source.title)+' ↗</a>').join('')+'</div>':'');
+ const body=issue?(state.researchErrorCode==='location_required'?locationForm():state.researchStatus==='loading'?'<span class="sr-only">Recherche läuft. Deine Zeit startet mit dem Ergebnis.</span><button class="story-pill" data-story="skip">Überspringen</button>':'<h2>Recherche nicht verfügbar</h2><p>'+esc(state.researchError||'Es liegt noch kein Ergebnis vor.')+'</p><button class="story-pill" data-story="retry">Erneut versuchen</button><button class="story-pill" data-story="skip">Überspringen</button>'):'<div class="spoken-copy" data-user-content>'+renderRich(outputText())+'</div>'+(result?'<div class="research-sources"><small>'+esc(result.preview?'Festes Vorschau-Beispiel · keine aktuellen Daten':step.demoResearch?'Redaktionelles Beispiel · 19.03.2025':'Recherchiert: '+new Date(result.retrievedAt).toLocaleString(locale()))+'</small>'+result.sources.map(source=>'<a class="story-source" href="'+esc(source.url)+'" target="_blank" rel="noopener noreferrer" data-interactive>'+esc(source.title)+' ↗</a>').join('')+'</div>':'');
  const speechIssue=state.speechError?'<div class="speech-error" role="status"><p>'+esc(state.speechError)+'</p><button class="story-pill" data-story="speech-retry">Erneut versuchen</button><button class="story-pill" data-story="speech-text">Als Text weiterlesen</button></div>':'';
 
- return `<div class="story-symbol" aria-hidden="true">${buddyArt()}</div><div class="buddy-preparing" role="status" hidden><span class="thinking-dots" aria-hidden="true">•••</span><span></span></div><div class="story-step-label"><span>${stepStage()} · ${player.s+1} / ${block.steps.length}</span><span class="story-mode">${block.output==='buddy'?`<span class="audio-visual">${Array.from({length:7},(_,i)=>`<i style="--i:${i};--h:${8+i*5%15}px"></i>`).join('')}</span>Audio`:labels[block.output]}</span></div><article class="story-text-card formatted-text" tabindex="0" aria-label="Anweisung und Ausgabe">${speechIssue}${step.guidance?'<div class="guided-session"><div class="guide-set-label"></div><strong class="guide-counter" aria-hidden="true"></strong><p class="guided-cue" role="status" aria-live="off"></p><div class="guide-set-progress" aria-hidden="true"></div></div>':''}${body}</article>`;
+ return `<div class="story-symbol" aria-hidden="true">${buddyArt()}</div><div class="buddy-preparing" role="status" hidden><span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="sr-only"></span></div><div class="story-step-label"><span>${stepStage()} · ${player.s+1} / ${block.steps.length}</span><span class="story-mode">${block.output==='buddy'?`<span class="audio-visual">${Array.from({length:7},(_,i)=>`<i style="--i:${i};--h:${8+i*5%15}px"></i>`).join('')}</span>Audio`:labels[block.output]}</span></div><article class="story-text-card formatted-text" tabindex="0" aria-label="Anweisung und Ausgabe">${speechIssue}${body}</article>`;
 }
 function responseView(){
  const state=stateNow(),step=stepNow();
@@ -170,12 +169,12 @@ function responseView(){
  else if(step.input==='voice')content=state.memo&&state.audio?'<div class="memo-playback"><audio controls src="'+state.audio+'" aria-label="Deine Aufnahme"></audio><button class="icon-btn" data-story="record" aria-label="Neu aufnehmen">'+icon('mic')+'</button></div>':'<button class="memo-record '+(state.recording?'recording':'')+'" data-story="record"><span class="record-circle">'+icon(state.recording?'stop':'mic')+'</span><span>'+(state.recording?'Aufnahme beenden':'Memo aufnehmen')+'<small>'+(state.recording?time(Math.floor(state.recordSeconds)):'Deine Gedanken, in deiner Stimme.')+'</small></span></button>';
  else if(step.input==='photo')content=`<div class="photo-stage"><label class="photo-response">${state.photos.length?`<img class="photo-inline" src="${state.photos[0]}" alt="Dein Foto im Ritual">`:icon('camera')}<span>${state.photos.length?'Foto wechseln':'Foto hinzufügen'}</span><input type="file" id="story-photo" accept="image/*" aria-label="Foto für dein Ritual auswählen"></label>${state.photos.length?'<button class="photo-expand" data-story="expand-photo" aria-label="Foto in Vollbild öffnen">↗</button>':''}</div>`;
  else content='';
- return `<div class="story-response input-${step.input}" data-interactive><div class="response-field">${content}</div><p class="story-input-error" role="alert" hidden></p><div class="response-actions">${step.input!=='none'?'<button data-story="skip" '+(state.recording?'disabled':'')+'>Überspringen</button>':'<span></span>'}<button class="story-continue" data-story="next-step">${nextLabel()} ${icon('arrow')}</button></div></div>`;
+ return `<div class="story-response input-${step.input}" data-interactive><div class="response-field">${content}</div><p class="story-input-error" role="alert" hidden></p><div class="response-actions">${step.input!=='none'?'<button data-story="skip" '+(state.recording?'disabled':'')+'>Überspringen</button>':'<span></span>'}</div></div>`;
 }
 
 function playerMarkup(){const block=blockNow(),state=stateNow();
-  return `<div class="story-viewport"><section class="story-face output-${block.output} has-input-${stepNow().input}" tabindex="-1" aria-label="${esc(block.title)}, Schritt ${player.s + 1}" data-block="${player.b}" data-story-step="${player.s}">${lavaMarkup({blocks:[block]},{tint:.55,background:true,blockGradient:true})}<header class="story-header"><div class="story-progress" aria-label="Schrittfortschritt">${block.steps.map((s, i) => `<div class="story-segment"><span style="transform:scaleX(${i < player.s ? 1 : i === player.s ? Math.min(1, stepNow().timer?state.elapsed / (s.minutes * 60):0) : 0})"></span></div>`).join('')}</div><div class="story-topline"><span class="story-avatar" style="--block-color:${colorOf(block).bg}">${symbol(block)}</span><div class="story-owner"><b>${esc(block.title)}</b><span>${player.preview ? 'Vorschau' : `${player.b + 1} von ${player.blocks.length} Bausteinen`}</span></div><button class="story-pause round-button" data-story="pause" aria-label="${state.paused ? 'Fortsetzen' : 'Pausieren'}">${icon(state.paused ? 'play' : 'pause')}</button><button class="story-close round-button" data-story="close" aria-label="Story schließen">${icon('close')}</button></div></header>
-  <div class="story-scroll"><div class="story-content">${storyContent()}</div>${responseView()}</div><footer class="story-footer"><span class="story-clock">${icon('timer')}<b>${stepNow().timer?time(Math.ceil(Math.max(0, stepNow().minutes * 60 - state.elapsed))):'In deinem Tempo'}</b></span><span class="story-status">${state.paused ? 'Pausiert' : 'In deinem Tempo'}</span><button class="story-help" data-story="help" aria-label="Hilfe und Schrittdetails">${icon('info')}</button></footer><button class="sr-only" data-story="prev-step">Schritt neu starten</button><button class="sr-only" data-story="prev-block">Vorheriger Baustein</button><button class="sr-only" data-story="next-block">Nächster Baustein</button></section></div>`;
+  return `<div class="story-viewport"><section class="story-face output-${block.output} has-input-${stepNow().input}" tabindex="-1" aria-label="${esc(block.title)}, Schritt ${player.s + 1}" data-block="${player.b}" data-story-step="${player.s}">${lavaMarkup({blocks:[block]},{tint:.55,background:true,blockGradient:true})}<header class="story-header"><div class="story-progress" aria-label="Schrittfortschritt">${block.steps.map((s, i) => `<div class="story-segment"><span style="transform:scaleX(${i < player.s ? 1 : i === player.s ? Math.min(1, state.elapsed / (s.minutes * 60)) : 0})"></span></div>`).join('')}</div><div class="story-topline"><span class="story-avatar" style="--block-color:${colorOf(block).bg}">${symbol(block)}</span><div class="story-owner"><b>${esc(block.title)}</b><span>${player.preview ? 'Vorschau' : `${player.b + 1} von ${player.blocks.length} Bausteinen`}</span></div><button class="story-pause round-button" data-story="pause" aria-label="${state.paused ? 'Fortsetzen' : 'Pausieren'}">${icon(state.paused ? 'play' : 'pause')}</button><button class="story-close round-button" data-story="close" aria-label="Story schließen">${icon('close')}</button></div></header>
+  <div class="story-scroll"><div class="story-content">${storyContent()}</div>${responseView()}</div><footer class="story-footer"><span class="story-clock">${icon('timer')}<b>${stepNow().timer?time(Math.ceil(Math.max(0, stepNow().minutes * 60 - state.elapsed))):'In deinem Tempo'}</b></span><span class="story-status">${state.paused ? 'Pausiert' : 'In deinem Tempo'}</span><button class="story-help" data-story="help" aria-label="Hilfe und Schrittdetails">${icon('info')}</button></footer><button class="sr-only" data-story="next-step">Nächster Schritt</button><button class="sr-only" data-story="prev-step">Schritt neu starten</button><button class="sr-only" data-story="prev-block">Vorheriger Baustein</button><button class="sr-only" data-story="next-block">Nächster Baustein</button></section></div>`;
 }
 function renderPlayer() {
   if (!player) return;
@@ -217,6 +216,11 @@ function renderPlayer() {
     }
   }
   updateVisuals();
+  const owner=player,blockId=player.b,base=colorOf(block).bg;
+  const rgb=[1,3,5].map(i=>parseInt(base.slice(i,i+2),16)),dark=document.documentElement.dataset.theme==='dark';
+  setSurfaceColor(`rgb(${rgb.map(v=>Math.round(dark?v*.23:v*.16+255*.84)).join(',')})`);
+  // Canvas registration/first paint can take several frames on mobile Safari.
+  let attempts=0;const matchSurface=()=>{if(player!==owner||player.b!==blockId)return;const canvas=$('.story-face .lava-background',overlay);try{const pixel=canvas?.getContext('2d')?.getImageData(Math.floor(canvas.width/2),0,1,1).data;if(pixel?.[3]){setSurfaceColor(`rgb(${pixel[0]},${pixel[1]},${pixel[2]})`);return;}}catch{}if(++attempts<20)requestAnimationFrame(matchSurface);};requestAnimationFrame(matchSurface);
 }
 function updateVisuals() {
   if (!player || player.done) return;
@@ -227,22 +231,14 @@ function updateVisuals() {
   }
   $('.story-face',overlay)?.classList.toggle('is-speaking',Boolean(state.speaking));
   const bar = $(`.story-segment:nth-child(${player.s + 1}) span`, overlay);
-  if (bar) bar.style.transform = `scaleX(${Math.min(1, stepNow().timer?state.elapsed / duration:0)})`;
+  if (bar) bar.style.transform = `scaleX(${Math.min(1, state.elapsed / duration)})`;
+  const clockWrap=$('.story-clock',overlay);if(clockWrap)clockWrap.hidden=!stepNow().timer;
   const clock = $('.story-clock b', overlay); if (clock) clock.textContent = stepNow().timer?time(Math.ceil(Math.max(0,duration-state.elapsed))):'In deinem Tempo';
   const status = $('.story-status', overlay);
   if (status) status.textContent = stepNow().timer && state.elapsed >= duration && stepNow().input !== 'none' ? 'Deine Antwort hat Zeit.' : player.hold ? 'Kurz durchatmen.' : state.paused ? 'Pausiert' : ''; 
   $('.story-face', overlay)?.classList.toggle('is-paused', !running());
   $('.story-symbol .buddy-character',overlay)?.classList.toggle('buddy-speaking',Boolean(state.speaking&&running()));
   setBuddySpeaking($('.story-symbol',overlay),Boolean(state.speaking&&speechSession?.audible&&running()));
-  if(stepNow().guidance){
-   const g=stepNow().guidance,cues=guidanceCues(g),cue=cues.findLast(c=>c.at<=state.elapsed),el=$('.guided-cue',overlay);
-   if(el){const text=cue?(cue.count?'Wiederholung '+cue.count+' / '+g.count:cue.text):'Gleich geht’s los …';if(el.textContent!==text)el.textContent=text;}
-   const set=$('.guide-set-label',overlay),counter=$('.guide-counter',overlay),progress=$('.guide-set-progress',overlay);
-   if(set){set.textContent=g.mode==='repetitions'?'Satz '+(cue?.set||1)+' von '+(g.sets||1):'Dein geführter Moment';}
-   if(counter){counter.textContent=g.mode!=='repetitions'?'':cue?.kind==='rest'?Math.ceil(Math.max(0,cue.until-state.elapsed))+' s':cue?.kind==='complete'?'✓':cue?.count||Math.ceil(Math.max(0,(cues.find(c=>c.at>state.elapsed&&c.kind==='rep')?.at||0)-state.elapsed));}
-   if(progress){const html=g.mode==='repetitions'?Array.from({length:g.sets||1},(_,i)=>'<i class="'+(i+1<(cue?.set||1)||cue?.kind==='complete'?'done':i+1===(cue?.set||1)?'current':'')+'"></i>').join(''):'';if(progress.innerHTML!==html)progress.innerHTML=html;}
-  }
-  const continueButton=$('.story-continue',overlay);if(continueButton){continueButton.disabled=Boolean(state.finalizing||state.requesting||state.photoLoading||state.recording||!ready()||stepNow().research&&state.outcome!=='success');}
   syncSpeech();
   const preparing=$('.buddy-preparing',overlay);if(preparing){const phase=state.researchStatus==='loading'?'research':state.speechLoading?'voice':'';preparing.hidden=!phase;if(preparing.dataset.phase!==phase){preparing.dataset.phase=phase;preparing.lastElementChild.textContent=phase==='research'?'Dein Buddy recherchiert …':'Dein Buddy bereitet die Stimme vor …';translateUI(preparing);}}
   warmAhead();
@@ -258,12 +254,11 @@ function updateClock() {
   }
   if (running() && !state.speechLoading) {
     const duration = stepNow().minutes * 60;
-    state.elapsed = stepNow().timer?Math.min(duration,state.elapsed+delta):state.elapsed+delta;
+    state.elapsed = Math.min(duration,state.elapsed+delta);
   }
-    if (stepNow().timer && !state.paused && !player.hold && !document.hidden && state.elapsed >= stepNow().minutes*60 && !state.speaking) {
-      state.paused = true;
-      if (stepNow().input === 'none' && (!stepNow().research || state.outcome === 'success' && researchFor(stepNow(),stateNow()))) { state.finished = true; state.skipped=false;nextStep(); return; }
-      renderPlayer();
+    if (!state.paused && !player.hold && !document.hidden && state.elapsed >= stepNow().minutes*60 && !state.finalizing && !state.photoLoading && !state.requesting && !['loading','error'].includes(state.researchStatus) && !state.speechLoading && !state.speechError) {
+      if(state.recording){state.advanceAfterRecording=true;stopRecording();return;}
+      state.finished=Boolean(ready());state.skipped=!state.finished;checkpoint();nextStep();return;
     }
   updateVisuals();if(now-lastCheckpoint>5000){checkpoint();lastCheckpoint=now;}
 }
@@ -409,8 +404,7 @@ overlay.addEventListener('pointermove', event => {
     }
   }
   const offset=valid?dx:dx*.18;
-  g.face.style.transform=`translateX(${offset}px)`;
-  if(g.neighbor)g.neighbor.style.transform=`translateX(${dx+(dx<0?g.width:-g.width)}px)`;
+  paintCube(g,offset);
 });
 overlay.addEventListener('pointerup', event => {
   if (!gesture || event.pointerId !== gesture.id) return;
@@ -423,13 +417,19 @@ overlay.addEventListener('pointerup', event => {
   else if (!g.held && !g.moved) { const rect = $('.story-face', overlay).getBoundingClientRect(); const x = (event.clientX - rect.left) / rect.width; if (x < .28) prevStep(); else if (x > .72) advanceStep(); }
   updateVisuals();
 });
+function cubeTransform(offset,width,neighbor=false,sign=-1){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return 'translateX('+(offset+(neighbor?-sign*width:0))+'px)';
+ const angle=Math.max(-90,Math.min(90,offset/width*90))-(neighbor?sign*90:0);
+ return 'translateZ('+(-width/2)+'px) rotateY('+angle+'deg) translateZ('+(width/2)+'px)';
+}
+function paintCube(g,offset){const sign=g.target<player.b?1:-1;g.face.style.transform=cubeTransform(offset,g.width);if(g.neighbor)g.neighbor.style.transform=cubeTransform(offset,g.width,true,sign);}
 function settleSwipe(g,commit){
  const owner=player;if(!owner||!g.face)return;
  owner.transitioning=true;const sign=g.dx<0?-1:1,to=commit?sign*g.width:0;
  const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:Math.min(240,Math.max(120,Math.abs(to-g.dx)*.55));
  const options={duration,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'};
- const animations=[g.face.animate([{transform:g.face.style.transform},{transform:`translateX(${to}px)`}],options)];
- if(g.neighbor)animations.push(g.neighbor.animate([{transform:g.neighbor.style.transform},{transform:`translateX(${commit?0:-sign*g.width}px)`}],options));
+ const animations=[g.face.animate([{transform:g.face.style.transform},{transform:cubeTransform(to,g.width)}],options)];
+ if(g.neighbor)animations.push(g.neighbor.animate([{transform:g.neighbor.style.transform},{transform:cubeTransform(to,g.width,true,sign)}],options));
  Promise.all(animations.map(a=>a.finished.catch(()=>{}))).then(()=>{
    animations.forEach(a=>a.cancel());g.face.style.transform='';g.neighbor?.remove();
    if(player!==owner||owner.done)return;owner.transitioning=false;

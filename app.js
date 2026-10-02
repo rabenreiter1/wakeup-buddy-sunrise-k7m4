@@ -1,4 +1,3 @@
-import {guidanceEditor,guidanceSummary} from './guidance.js';
 import {saveLibraryBlock} from './repository.js';
 import {MAX_STEPS} from './limits.js';
 import './theme.js';
@@ -72,7 +71,7 @@ function stepView(step, index) {
   <label class="switch-row research-row"><span class="switch-copy">${icon('globe')} Im Internet recherchieren</span><input class="switch" type="checkbox" data-research="${step.id}" ${step.research ? 'checked' : ''}></label>
   <p class="research-explanation">${step.research?'Dein Text ist der Rechercheauftrag. {{ort}} verwendet deinen gespeicherten Ort, {{aktien}} deine Marktinteressen. Verwendet wird das recherchierte Ergebnis.':'Dein Text wird unverändert angezeigt oder vorgelesen.'}</p><span class="label">Deine Eingabe morgens</span><div class="input-types" role="group" aria-label="Eingabe im Ritual">${Object.entries(inputNames).map(([key, label]) => `<button data-input="${key}" data-id="${step.id}" aria-pressed="${step.input === key}">${icon({ none: 'minus', text: 'text', voice: 'mic', photo: 'camera' }[key])}${label}</button>`).join('')}</div>
   <div class="duration-row"><label class="label" for="duration-${step.id}">Dauer</label><span class="duration-value" id="duration-value-${step.id}">${step.minutes} <small>Min.</small></span></div><input id="duration-${step.id}" aria-label="Zeit für Schritt ${index + 1} in Minuten" data-duration="${step.id}" type="range" min="1" max="20" step="1" value="${step.minutes}" style="--fill:${(step.minutes - 1) / 19 * 100}%"><div class="range-labels"><span>1 Min.</span><span>20 Min.</span></div>
-  ${guidanceEditor(step)}<label class="switch-row"><span class="switch-copy">${step.input==='none'?'Nach Ablauf automatisch weiter':'Nach Ablauf auf deine Antwort warten'}</span><input class="switch" type="checkbox" data-timer="${step.id}" ${step.timer ? 'checked' : ''} ${step.input!=='none'||step.guidance?'disabled':''}></label></div>` : ''}</section>`;
+  <label class="switch-row"><span class="switch-copy">Timer anzeigen</span><input class="switch" type="checkbox" data-timer="${step.id}" ${step.timer ? 'checked' : ''} ></label></div>` : ''}</section>`;
 }
 function contentView() {
   return `${editingExisting?'<p class="shared-edit-note">Änderungen gelten in allen Ritualen, die diesen Baustein verwenden.</p>':''}<div class="editor-identity"><button type="button" class="identity-look" data-action="appearance" aria-label="Symbol und Farbe ändern"><span class="appearance-sample" style="${visualStyle(draft)}">${symbol(draft)}</span><span class="edit-badge" aria-hidden="true">${icon('edit')}</span></button><div class="identity-title"><label class="label" for="title">Titel des Bausteins</label><input type="text" id="title" class="title-input compact-title" maxlength="20" placeholder="Worum geht’s?" autocomplete="off" value="${esc(draft.title)}"><div class="meta-row"><span id="title-count">${draft.title.length} / 20</span></div></div></div>
@@ -114,7 +113,6 @@ app.addEventListener('click',async event=>{
  catch{announce('Entwurf konnte nicht gespeichert werden. Bitte erneut versuchen.');}
 });
 function updateGates() {
-  for(const summary of app.querySelectorAll('[data-guide-summary]'))summary.textContent=guidanceSummary(stepById(summary.dataset.guideSummary)?.guidance);
   const issues = contentIssues(draft);
   for(const button of app.querySelectorAll('[data-action=save],[data-action=launch-preview]'))button.disabled=saving||issues.length>0||Boolean(outputIssue(draft));
   const next = $('#next');
@@ -138,8 +136,6 @@ function goPage(page) {
 
 app.addEventListener('input', event => {
   const target = event.target;
-  if(target.dataset.guideField){const g=stepById(target.dataset.guideStep).guidance;g[target.dataset.guideField]=target.dataset.guideField==='intro'?target.value:Number(target.value);updateGates();persist();}
-  if(target.dataset.guidePhases){stepById(target.dataset.guidePhases).guidance.cues=target.value.split('\n').filter(line=>line.trim()).map(line=>{const split=line.indexOf('|');return {at:split<0?-1:Number(line.slice(0,split).trim()),text:split<0?line:line.slice(split+1).trim()};});updateGates();persist();}
   if (target.id === 'title') { draft.title = target.value; $('#title-count').textContent = `${target.value.length} / 20`; updateGates(); persist(); }
   if (target.id === 'description') { draft.description = target.value; $('#description-count').textContent = `${target.value.length} / 500`; persist(); }
   if (target.dataset.instruction) {
@@ -155,7 +151,6 @@ app.addEventListener('input', event => {
 });
 app.addEventListener('change', async event => {
   const target = event.target;
-  if(target.dataset.guideMode){const step=stepById(target.dataset.guideMode);if(target.value==='none')delete step.guidance;else{step.guidance=target.value==='repetitions'?{mode:'repetitions',sets:1,rest:20,count:5,start:12,interval:6,intro:'Wir beginnen gleich. Finde einen bequemen Stand.'}:{mode:'phases',cues:[{at:0,text:'Nimm dir einen Moment zum Ankommen.'},{at:30,text:'Spüre deine Füße auf dem Boden.'}]};step.timer=true;}commit();}
   if (target.dataset.research) { stepById(target.dataset.research).research = target.checked;if(target.checked)delete stepById(target.dataset.research).guidance; commit(); }
   if (target.dataset.timer) { stepById(target.dataset.timer).timer = target.checked; persist(); }
 

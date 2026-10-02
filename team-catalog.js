@@ -103,6 +103,16 @@ lookup('mobility').steps[1].message.text='Halte dich bei Bedarf fest. Rolle von 
 lookup('technique').steps[0].guidance.intro='Stabiler Stuhl: langsam hinsetzen und aufstehen. Hände helfen, alternativ Beine im Sitzen strecken. Bei Schmerzen stoppen.';
 export const PREVIOUS_TEAM_BLOCKS=structuredClone(CATALOG_BLOCKS);
 enrichExperiences(CATALOG_BLOCKS);
+export const GUIDED_TEAM_BLOCKS=structuredClone(CATALOG_BLOCKS);
+for(const block of CATALOG_BLOCKS){
+ for(const step of block.steps){if(!step.guidance)continue;
+  if(step.guidance.mode==='repetitions')step.message.text='*Zwei saubere Sätze*\n\nStabiler Stuhl an der Wand. Langsam hinsetzen und wieder aufstehen. Hände dürfen helfen. Alternative: sitzen bleiben und abwechselnd ein Bein strecken. Bei Schmerzen stoppen.\n\nSatz eins. Wir zählen ruhig: Eins … hinsetzen, aufstehen. Zwei … kontrolliert. Drei … weiteratmen. Vier … fester Stand. Fünf … ohne Eile. Sechs … geschafft.\n\nPause. Lockere die Beine. Atme bequem. Du kannst den Player für eine längere Pause anhalten.\n\nBereit für Satz zwei? Eins … langsam. Zwei … kontrolliert. Drei … bleib bei deiner Variante. Vier … weiteratmen. Fünf … fast da. Sechs … geschafft.\n\nLass die Bewegung ausklingen. Wie kontrolliert war deine letzte Wiederholung?';
+  else step.message.text='*'+(step.message.text.match(/^\*([^*]+)\*/)?.[1]||'Dein Moment')+'*\n\n'+step.guidance.cues.map(c=>c.text).join('\n\n');
+  delete step.guidance;
+ }
+ block.contentRevision=4;
+}
+
 const byId=new Map(CATALOG_BLOCKS.map(block=>[block.id,block]));
 const ritual=(slug,title,description,ids)=>({id:'wb-ritual-'+slug,sourceId:'wb-ritual-'+slug,version:1,kind:'ritual',publisherId:TEAM_PUBLISHER,author:'Wakeup Buddy Team',title,description,theme:'lilac',blocks:ids.map(id=>byId.get('wb-'+id))});
 export const CATALOG_RITUALS=[
