@@ -8,7 +8,7 @@ let context, bus, musicBus, alarmBus, enabled = true, loop, alarmLoop, previewTi
 const musicNotes=new Set();
 function silenceMusic(){if(!context)return;for(const {osc,gain} of musicNotes){gain.gain.cancelScheduledValues(context.currentTime);gain.gain.setTargetAtTime(.0001,context.currentTime,.008);try{osc.stop(context.currentTime+.04);}catch{}}musicNotes.clear();}
 let track = 'none', level = .25, playing = false, beat = 0, duck = 1;
-function audioContext() {
+export function audioContext() {
   if (!context) { context = new (window.AudioContext || window.webkitAudioContext)(); bus = context.createGain(); bus.gain.value = enabled ? .45 : 0; bus.connect(context.destination); musicBus = context.createGain(); alarmBus = context.createGain(); musicBus.connect(bus); alarmBus.connect(context.destination); }
   context.resume().catch(() => {}); return context;
 }
