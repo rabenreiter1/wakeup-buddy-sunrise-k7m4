@@ -1,6 +1,7 @@
 import {AI_CONFIG} from './ai-config.js';
 import {validateHandoff,encryptHandoff} from './native-connect-crypto.js';
 const params=new URLSearchParams(location.search),nativeKey=params.get('key')||'',state=params.get('state')||'';
+const embedded=params.get('embedded')==='1';if(embedded)document.documentElement.classList.add('embedded');
 const button=document.getElementById('connect'),status=document.getElementById('status'),open=document.getElementById('open-app'),cancel=document.getElementById('cancel');
 const callback=values=>{const url=new URL('wakeupbuddy-native://voice-auth');for(const [key,value]of Object.entries(values))url.searchParams.set(key,value);return url.href;};
 let scriptPromise;
@@ -26,5 +27,7 @@ button.onclick=async()=>{
         if(typeof session.token!=='string'||!Number.isFinite(session.expiresAt))throw Error('Die Verbindung konnte nicht geprüft werden.');
         const envelope=await encryptHandoff(nativeKey,state,{token:session.token,expiresAt:session.expiresAt});
         open.href=callback(envelope);open.hidden=false;button.hidden=true;status.textContent='Bereit. Öffne jetzt Wakeup Buddy.';
+        if(embedded)location.href=open.href;
     } catch(error) {status.textContent=error.message||'Bitte erneut versuchen.';button.disabled=false;}
 };
+if(embedded&&!button.disabled)button.click();
