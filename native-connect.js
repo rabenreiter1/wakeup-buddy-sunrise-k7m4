@@ -13,7 +13,7 @@ function challenge(){return new Promise((resolve,reject)=>{
     let widget,timer,settled=false;
     const finish=(error,token)=>{if(settled)return;settled=true;clearTimeout(timer);if(widget!==undefined)window.turnstile.remove(widget);error?reject(Error(error)):resolve(token);};
     timer=setTimeout(()=>finish('Die Zugriffsprüfung hat zu lange gedauert. Bitte erneut versuchen.'),90000);
-    widget=window.turnstile.render(document.getElementById('verification'),{sitekey:AI_CONFIG.turnstileSiteKey,action:'wakeup-ai',appearance:'interaction-only',callback:token=>finish(null,token),'error-callback':()=>finish('Der Zugriff konnte nicht bestätigt werden.'),'expired-callback':()=>finish('Bitte bestätige den Zugriff erneut.')});
+    widget=window.turnstile.render(document.getElementById('verification'),{sitekey:AI_CONFIG.turnstileSiteKey,action:'wakeup-ai',size:'flexible',appearance:'interaction-only',callback:token=>finish(null,token),'error-callback':code=>{if(/^[0-9]{6}$/.test(String(code)))console.warn('Native verification failed ('+code+')');finish('Der Zugriff konnte nicht bestätigt werden.');},'expired-callback':()=>finish('Bitte bestätige den Zugriff erneut.')});
 });}
 try {
     await validateHandoff(nativeKey,state);cancel.href=callback({state,cancelled:'1'});cancel.hidden=false;button.disabled=false;
