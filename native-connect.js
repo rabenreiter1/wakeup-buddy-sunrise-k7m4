@@ -22,10 +22,18 @@ button.onclick=async()=>{
     button.disabled=true;status.textContent='Zugriff wird geprüft …';
     try {
         await loadChallenge();const token=await challenge();
-        const response=await fetch(AI_CONFIG.apiBase.replace(/\/$/,'')+'/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token}),credentials:'omit',cache:'no-store',redirect:'error'});
-        const session=await response.json();if(!response.ok)throw Error(session.message||'Die Verbindung ist gerade nicht verfügbar.');
-        if(typeof session.token!=='string'||!Number.isFinite(session.expiresAt))throw Error('Die Verbindung konnte nicht geprüft werden.');
-        const envelope=await encryptHandoff(nativeKey,state,{token:session.token,expiresAt:session.expiresAt});
+        let payload;
+        if(params.get('native-session')==='1'){
+            // Native HTTP creates the session after the Worker validates this one-use proof.
+            // This keeps the session bound to the network used by native service requests.
+            payload={challengeToken:token,issuedAt:Date.now()};
+        }else{
+            const response=await fetch(AI_CONFIG.apiBase.replace(/\/$/,'')+'/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token}),credentials:'omit',cache:'no-store',redirect:'error'});
+            const session=await response.json();if(!response.ok)throw Error(session.message||'Die Verbindung ist gerade nicht verfügbar.');
+            if(typeof session.token!=='string'||!Number.isFinite(session.expiresAt))throw Error('Die Verbindung konnte nicht geprüft werden.');
+            payload={token:session.token,expiresAt:session.expiresAt};
+        }
+        const envelope=await encryptHandoff(nativeKey,state,payload);
         open.href=callback(envelope);open.hidden=false;button.hidden=true;status.textContent='Bereit. Öffne jetzt Wakeup Buddy.';
         if(embedded)location.href=open.href;
     } catch(error) {status.textContent=error.message||'Bitte erneut versuchen.';button.disabled=false;}
